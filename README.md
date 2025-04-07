@@ -1,5 +1,6 @@
----
+SomaFM Console Player A simple, lightweight console-based application for streaming SomaFM internet radio channels. Browse available stations using arrow keys, select your favorite channel, and enjoy real-time track information display. Perfect for users who prefer minimalistic tools without graphical interfaces.
 
+---
 # SomaFM TUI Player
 
 A console-based player for SomaFM internet radio .
@@ -25,12 +26,19 @@ sudo apt-get install mpv
 ```bash
 pip install -r requirements.txt
 ```
+or use script install.sh wich automaticaly install all requirements
 
 ## Usage
 
 1. Run the application:
 ```bash
 python somafm.py
+```
+or
+somafm.bash
+
+```fish
+somafm.fish
 ```
 
 2. Controls:
