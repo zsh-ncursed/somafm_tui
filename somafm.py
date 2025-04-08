@@ -362,6 +362,15 @@ class SomaFMPlayer:
                         self.playback_screen = None
                         self.player.stop()
                         self.is_playing = False
+                        self.is_paused = False
+                        self.current_metadata = {
+                            'artist': 'No data',
+                            'title': 'No data',
+                            'duration': '--:--'
+                        }
+                        continue  # Возвращаемся к списку каналов
+                    elif key == ord(' '):
+                        self._toggle_playback()
                 else:
                     if key == curses.KEY_UP:
                         self.current_index = max(0, self.current_index - 1)
@@ -371,8 +380,6 @@ class SomaFMPlayer:
                         self._play_channel(self.channels[self.current_index])
                     elif key == ord('q'):
                         self.running = False
-                    elif key == ord(' '):
-                        self._toggle_playback()
             
             # Clean up
             self._cleanup()
