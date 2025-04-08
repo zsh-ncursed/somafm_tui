@@ -126,6 +126,15 @@ class PlaybackScreen:
 
 class SomaFMPlayer:
     def __init__(self):
+        # Check if MPV is installed
+        if not self._check_mpv():
+            print("Error: MPV player is not installed or not in PATH")
+            print("Please install MPV using your package manager:")
+            print("  - Arch Linux: sudo pacman -S mpv")
+            print("  - Ubuntu/Debian: sudo apt-get install mpv")
+            print("  - Fedora: sudo dnf install mpv")
+            sys.exit(1)
+
         self.channels = self._fetch_channels()
         self.player = mpv.MPV(
             input_default_bindings=True,
@@ -184,6 +193,17 @@ class SomaFMPlayer:
                     self.current_metadata = metadata
                     if self.playback_screen:
                         self.playback_screen.update_metadata(metadata)
+
+    def _check_mpv(self) -> bool:
+        """Check if MPV is installed and accessible"""
+        try:
+            import subprocess
+            result = subprocess.run(['mpv', '--version'], 
+                                 stdout=subprocess.PIPE, 
+                                 stderr=subprocess.PIPE)
+            return result.returncode == 0
+        except Exception:
+            return False
 
     def _init_colors(self):
         """Initialize colors"""
@@ -272,15 +292,15 @@ class SomaFMPlayer:
     def _play_channel(self, channel: Dict):
         """Play selected channel"""
         try:
-            # Get highest quality stream URL
+            # Get stream URL from playlists
             stream_url = None
-            for quality in ['highest', 'high', 'medium', 'low']:
-                if quality in channel['urls']:
-                    stream_url = channel['urls'][quality]
+            for playlist in channel.get('playlists', []):
+                if playlist.get('format') == 'mp3':
+                    stream_url = playlist.get('url')
                     break
             
             if not stream_url:
-                raise Exception("No valid stream URL found")
+                raise Exception(f"No MP3 stream found for channel {channel['title']}")
             
             # Stop current playback if any
             if self.player:
@@ -297,10 +317,14 @@ class SomaFMPlayer:
             
             # Log channel change
             logging.info(f"Playing channel: {channel['title']}")
+            logging.debug(f"Stream URL: {stream_url}")
             
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
             print(f"Error playing channel: {e}")
+            self.is_playing = False
+            self.is_paused = False
+            self.current_channel = None
 
     def _toggle_playback(self):
         """Toggle playback pause/resume"""
