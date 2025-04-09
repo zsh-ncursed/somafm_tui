@@ -356,9 +356,12 @@ class SomaFMPlayer:
                 
                 # Get user input
                 key = stdscr.getch()
+                logging.debug(f"Pressed key code: {key}")
                 
                 if self.playback_screen:
-                    if key == ord('q'):
+                    # Проверяем все возможные коды клавиши 'q' для разных раскладок
+                    if key in [ord('q'), ord('й'), ord('Q'), ord('Й')]:
+                        logging.debug("Detected 'q' key press during playback")
                         self.playback_screen = None
                         self.player.stop()
                         self.is_playing = False
@@ -369,16 +372,17 @@ class SomaFMPlayer:
                             'duration': '--:--'
                         }
                         continue  # Возвращаемся к списку каналов
-                    elif key == ord(' '):
+                    elif key in [ord(' '), curses.KEY_SPACE]:
                         self._toggle_playback()
                 else:
                     if key == curses.KEY_UP:
                         self.current_index = max(0, self.current_index - 1)
                     elif key == curses.KEY_DOWN:
                         self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                    elif key == ord('\n'):  # Enter key
+                    elif key in [curses.KEY_ENTER, ord('\n'), ord('\r')]:
                         self._play_channel(self.channels[self.current_index])
-                    elif key == ord('q'):
+                    elif key in [ord('q'), ord('й'), ord('Q'), ord('Й')]:
+                        logging.debug("Detected 'q' key press in channel list")
                         self.running = False
             
             # Clean up
