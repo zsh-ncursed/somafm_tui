@@ -63,7 +63,7 @@ class PlaybackScreen:
             if (self.current_metadata['artist'] not in ['No data', 'Loading...'] and 
                 self.current_metadata['title'] not in ['No data', 'Loading...']):
                 # Add playback icon
-                play_symbol = "▶" if not self.player.is_paused else "⏸"
+                play_symbol = "▶" if not self.player.pause else "⏸"
                 current_track = f"{play_symbol} {self.current_metadata['artist']} - {self.current_metadata['title']}"
                 if len(current_track) > max_x:
                     current_track = current_track[:max_x-3] + "..."
@@ -347,6 +347,13 @@ class SomaFMPlayer:
             # Initialize colors
             self._init_colors()
             
+            # Enable keypad mode for special keys
+            stdscr.keypad(True)
+            # Enable Unicode support
+            curses.raw()
+            # Enable non-blocking mode
+            stdscr.nodelay(False)
+            
             # Main loop
             while self.running:
                 if self.playback_screen:
@@ -356,12 +363,12 @@ class SomaFMPlayer:
                 
                 # Get user input
                 key = stdscr.getch()
-                logging.debug(f"Pressed key code: {key}")
+                logging.debug(f"Pressed key code: {key} (hex: {hex(key)})")
                 
                 if self.playback_screen:
-                    # Проверяем все возможные коды клавиши 'q' для разных раскладок
-                    if key in [ord('q'), ord('й'), ord('Q'), ord('Й')]:
-                        logging.debug("Detected 'q' key press during playback")
+                    # Проверяем нажатие клавиши 'q' в любой раскладке
+                    if key in [ord('q'), ord('й'), ord('Q'), ord('Й'), 0x71, 0x51, 0x439, 0x419]:
+                        logging.debug(f"Detected 'q' key press during playback (code: {key}, hex: {hex(key)})")
                         self.playback_screen = None
                         self.player.stop()
                         self.is_playing = False
@@ -372,7 +379,7 @@ class SomaFMPlayer:
                             'duration': '--:--'
                         }
                         continue  # Возвращаемся к списку каналов
-                    elif key == ord(' '):  # Пробел для паузы/возобновления
+                    elif key == ord(' '):
                         self._toggle_playback()
                 else:
                     if key == curses.KEY_UP:
@@ -381,8 +388,8 @@ class SomaFMPlayer:
                         self.current_index = min(len(self.channels) - 1, self.current_index + 1)
                     elif key in [curses.KEY_ENTER, ord('\n'), ord('\r')]:
                         self._play_channel(self.channels[self.current_index])
-                    elif key in [ord('q'), ord('й'), ord('Q'), ord('Й')]:
-                        logging.debug("Detected 'q' key press in channel list")
+                    elif key in [ord('q'), ord('й'), ord('Q'), ord('Й'), 0x71, 0x51, 0x439, 0x419]:
+                        logging.debug(f"Detected 'q' key press in channel list (code: {key}, hex: {hex(key)})")
                         self.running = False
             
             # Clean up
