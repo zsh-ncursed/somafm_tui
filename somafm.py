@@ -372,7 +372,7 @@ class SomaFMPlayer:
                             'duration': '--:--'
                         }
                         continue  # Возвращаемся к списку каналов
-                    elif key in [ord(' '), curses.KEY_SPACE]:
+                    elif key == ord(' '):  # Пробел для паузы/возобновления
                         self._toggle_playback()
                 else:
                     if key == curses.KEY_UP:
