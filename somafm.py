@@ -11,7 +11,7 @@ from datetime import datetime
 
 # Logging setup
 logging.basicConfig(
-    filename=f'somafm_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log',
+    filename='/tmp/somafm.log',
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
