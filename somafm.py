@@ -58,16 +58,14 @@ class PlaybackScreen:
         except curses.error:
             pass
 
-        # Display current track only if we have real metadata
+        # Display current track
         try:
-            if (self.current_metadata['artist'] not in ['No data', 'Loading...'] and 
-                self.current_metadata['title'] not in ['No data', 'Loading...']):
-                # Add playback icon
-                play_symbol = "▶" if not self.player.pause else "⏸"
-                current_track = f"{play_symbol} {self.current_metadata['artist']} - {self.current_metadata['title']}"
-                if len(current_track) > max_x:
-                    current_track = current_track[:max_x-3] + "..."
-                stdscr.addstr(2, 0, current_track, curses.color_pair(4) | curses.A_BOLD)
+            # Add playback icon
+            play_symbol = "▶" if not self.player.pause else "⏸"
+            current_track = f"{play_symbol} {self.current_metadata['artist']} - {self.current_metadata['title']}"
+            if len(current_track) > max_x:
+                current_track = current_track[:max_x-3] + "..."
+            stdscr.addstr(2, 0, current_track, curses.color_pair(4) | curses.A_BOLD)
         except curses.error:
             pass
 
@@ -77,18 +75,15 @@ class PlaybackScreen:
             if y >= max_y - 2:
                 break
             try:
-                # Show only tracks with real metadata
-                if (track['artist'] not in ['No data', 'Loading...'] and 
-                    track['title'] not in ['No data', 'Loading...']):
-                    # Format timestamp
-                    timestamp = track.get('timestamp', '')
-                    if timestamp:
-                        timestamp = f"[{timestamp}] "
-                    track_info = f"  {timestamp}{track['artist']} - {track['title']}"
-                    if len(track_info) > max_x:
-                        track_info = track_info[:max_x-3] + "..."
-                    stdscr.addstr(y, 0, track_info, curses.color_pair(4))
-                    y += 1
+                # Format timestamp
+                timestamp = track.get('timestamp', '')
+                if timestamp:
+                    timestamp = f"[{timestamp}] "
+                track_info = f"  {timestamp}{track['artist']} - {track['title']}"
+                if len(track_info) > max_x:
+                    track_info = track_info[:max_x-3] + "..."
+                stdscr.addstr(y, 0, track_info, curses.color_pair(4))
+                y += 1
             except curses.error:
                 continue
 
@@ -147,8 +142,8 @@ class SomaFMPlayer:
         self.is_paused = False
         self.scroll_offset = 0
         self.current_metadata = {
-            'artist': 'No data',
-            'title': 'No data',
+            'artist': 'Loading...',
+            'title': 'Loading...',
             'duration': '--:--'
         }
         self.running = True
@@ -362,35 +357,38 @@ class SomaFMPlayer:
                     self._display_channels(stdscr, self.current_index)
                 
                 # Get user input
-                key = stdscr.getch()
-                logging.debug(f"Pressed key code: {key} (hex: {hex(key)})")
-                
-                if self.playback_screen:
-                    # Проверяем нажатие клавиши 'q' в любой раскладке
-                    if key in [ord('q'), ord('й'), ord('Q'), ord('Й'), 0x71, 0x51, 0x439, 0x419]:
-                        logging.debug(f"Detected 'q' key press during playback (code: {key}, hex: {hex(key)})")
-                        self.playback_screen = None
-                        self.player.stop()
-                        self.is_playing = False
-                        self.is_paused = False
-                        self.current_metadata = {
-                            'artist': 'No data',
-                            'title': 'No data',
-                            'duration': '--:--'
-                        }
-                        continue  # Возвращаемся к списку каналов
-                    elif key == ord(' '):
-                        self._toggle_playback()
-                else:
-                    if key == curses.KEY_UP:
-                        self.current_index = max(0, self.current_index - 1)
-                    elif key == curses.KEY_DOWN:
-                        self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                    elif key in [curses.KEY_ENTER, ord('\n'), ord('\r')]:
-                        self._play_channel(self.channels[self.current_index])
-                    elif key in [ord('q'), ord('й'), ord('Q'), ord('Й'), 0x71, 0x51, 0x439, 0x419]:
-                        logging.debug(f"Detected 'q' key press in channel list (code: {key}, hex: {hex(key)})")
-                        self.running = False
+                try:
+                    key = stdscr.get_wch()
+                    logging.debug(f"Pressed key: {key} (type: {type(key)})")
+                    
+                    if self.playback_screen:
+                        # Проверяем нажатие клавиши 'q' в любой раскладке
+                        if key in ['q', 'й', 'Q', 'Й'] or key == curses.KEY_ESCAPE:
+                            logging.debug(f"Detected 'q' key press during playback (key: {key})")
+                            self.playback_screen = None
+                            self.player.stop()
+                            self.is_playing = False
+                            self.is_paused = False
+                            self.current_metadata = {
+                                'artist': 'Loading...',
+                                'title': 'Loading...',
+                                'duration': '--:--'
+                            }
+                            continue  # Возвращаемся к списку каналов
+                        elif key == ' ':
+                            self._toggle_playback()
+                    else:
+                        if key == curses.KEY_UP:
+                            self.current_index = max(0, self.current_index - 1)
+                        elif key == curses.KEY_DOWN:
+                            self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                        elif key in [curses.KEY_ENTER, '\n', '\r']:
+                            self._play_channel(self.channels[self.current_index])
+                        elif key in ['q', 'й', 'Q', 'Й'] or key == curses.KEY_ESCAPE:
+                            logging.debug(f"Detected 'q' key press in channel list (key: {key})")
+                            self.running = False
+                except curses.error:
+                    continue
             
             # Clean up
             self._cleanup()
