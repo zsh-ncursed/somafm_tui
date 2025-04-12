@@ -161,11 +161,22 @@ class SomaFMPlayer:
                 
                 # Get metadata from stream
                 icy_title = value.get('icy-title', '')
+                logging.debug(f"icy-title: {icy_title}")
                 
-                # If icy-title exists, split into artist and title
-                if icy_title and ' - ' in icy_title:
-                    artist, title = icy_title.split(' - ', 1)
-                    logging.debug(f"Split icy-title: artist={artist}, title={title}")
+                # If icy-title exists, try to parse it
+                if icy_title:
+                    # Try to split by ' - ' first
+                    if ' - ' in icy_title:
+                        artist, title = icy_title.split(' - ', 1)
+                    # If no ' - ', try to split by ' – ' (en dash)
+                    elif ' – ' in icy_title:
+                        artist, title = icy_title.split(' – ', 1)
+                    # If no separator found, use the whole string as title
+                    else:
+                        artist = 'Unknown'
+                        title = icy_title
+                    
+                    logging.debug(f"Parsed metadata: artist={artist}, title={title}")
                     metadata = {
                         'artist': artist,
                         'title': title,
@@ -176,7 +187,7 @@ class SomaFMPlayer:
                     if self.playback_screen:
                         self.playback_screen.update_metadata(metadata)
                 else:  # If no metadata, use channel name
-                    artist = 'No data'
+                    artist = 'Unknown'
                     title = self.current_channel['title'] if self.current_channel else 'No data'
                     logging.debug(f"Using channel name as title: {title}")
                     metadata = {
@@ -313,6 +324,10 @@ class SomaFMPlayer:
             # Log channel change
             logging.info(f"Playing channel: {channel['title']}")
             logging.debug(f"Stream URL: {stream_url}")
+            
+            # Force metadata update
+            self.player.wait_for_property('metadata')
+            logging.debug("Waiting for metadata...")
             
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
