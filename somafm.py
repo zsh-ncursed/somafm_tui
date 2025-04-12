@@ -37,6 +37,7 @@ class PlaybackScreen:
         self.track_history = []
 
     def display(self, stdscr):
+        logging.debug("PlaybackScreen.display() called")
         max_y, max_x = stdscr.getmaxyx()
         
         # Clear screen
@@ -44,9 +45,11 @@ class PlaybackScreen:
         
         # Display channel name
         try:
-            stdscr.addstr(0, 0, f"Channel: {self.channel['title']}", 
-                         curses.color_pair(1) | curses.A_BOLD)
-        except curses.error:
+            channel_title = f"Channel: {self.channel['title']}"
+            logging.debug(f"Displaying channel title: {channel_title}")
+            stdscr.addstr(0, 0, channel_title, curses.color_pair(1) | curses.A_BOLD)
+        except curses.error as e:
+            logging.error(f"Error displaying channel title: {e}")
             pass
 
         # Display channel description
@@ -63,10 +66,12 @@ class PlaybackScreen:
             # Add playback icon
             play_symbol = "▶" if not self.player.pause else "⏸"
             current_track = f"{play_symbol} {self.current_metadata['artist']} - {self.current_metadata['title']}"
+            logging.debug(f"Displaying current track: {current_track}")
             if len(current_track) > max_x:
                 current_track = current_track[:max_x-3] + "..."
             stdscr.addstr(2, 0, current_track, curses.color_pair(4) | curses.A_BOLD)
-        except curses.error:
+        except curses.error as e:
+            logging.error(f"Error displaying current track: {e}")
             pass
 
         # Display track history
@@ -106,11 +111,14 @@ class PlaybackScreen:
 
     def update_metadata(self, metadata):
         """Update current track metadata"""
+        logging.debug(f"PlaybackScreen.update_metadata() called with: {metadata}")
         if metadata != self.current_metadata:
+            logging.debug("Metadata changed, updating...")
             # Move current track to history
             self.add_to_history(self.current_metadata)
             # Update current track
-            self.current_metadata = metadata
+            self.current_metadata = metadata.copy()  # Make a copy to avoid reference issues
+            logging.debug(f"Updated current_metadata: {self.current_metadata}")
             # Clear next track
             self.next_metadata = {
                 'artist': 'Next track',
@@ -118,6 +126,10 @@ class PlaybackScreen:
                 'duration': '--:--',
                 'timestamp': None
             }
+            # Force screen refresh
+            curses.doupdate()
+        else:
+            logging.debug("Metadata unchanged, skipping update")
 
 class SomaFMPlayer:
     def __init__(self):
@@ -148,57 +160,38 @@ class SomaFMPlayer:
         }
         self.running = True
         self.playback_screen = None
+        self.stdscr = None  # Store stdscr for updates
         
-        # Subscribe to property changes
+        # Set up metadata observer
         @self.player.property_observer('metadata')
         def metadata_handler(name, value):
             if value:
-                # Log all metadata
-                logging.debug("=== Received metadata ===")
-                for key, val in value.items():
-                    logging.debug(f"Key: {key}, Value: {val}")
-                logging.debug("==========================")
+                logging.debug(f"Received metadata: {value}")
+                # Try to get track info from metadata
+                track_info = value.get('icy-title', '')
                 
-                # Get metadata from stream
-                icy_title = value.get('icy-title', '')
-                logging.debug(f"icy-title: {icy_title}")
-                
-                # If icy-title exists, try to parse it
-                if icy_title:
-                    # Try to split by ' - ' first
-                    if ' - ' in icy_title:
-                        artist, title = icy_title.split(' - ', 1)
-                    # If no ' - ', try to split by ' – ' (en dash)
-                    elif ' – ' in icy_title:
-                        artist, title = icy_title.split(' – ', 1)
-                    # If no separator found, use the whole string as title
-                    else:
-                        artist = 'Unknown'
-                        title = icy_title
-                    
-                    logging.debug(f"Parsed metadata: artist={artist}, title={title}")
-                    metadata = {
-                        'artist': artist,
-                        'title': title,
-                        'duration': '--:--',  # TODO: Add duration retrieval
-                        'timestamp': datetime.now().strftime("%H:%M:%S")  # Add playback start time
-                    }
-                    self.current_metadata = metadata
-                    if self.playback_screen:
-                        self.playback_screen.update_metadata(metadata)
-                else:  # If no metadata, use channel name
-                    artist = 'Unknown'
-                    title = self.current_channel['title'] if self.current_channel else 'No data'
-                    logging.debug(f"Using channel name as title: {title}")
-                    metadata = {
-                        'artist': artist,
-                        'title': title,
-                        'duration': '--:--',
-                        'timestamp': datetime.now().strftime("%H:%M:%S")  # Add playback start time
-                    }
-                    self.current_metadata = metadata
-                    if self.playback_screen:
-                        self.playback_screen.update_metadata(metadata)
+                if track_info:
+                    # Try to split by different separators
+                    for separator in [' - ', ' – ']:
+                        if separator in track_info:
+                            parts = track_info.split(separator, 1)
+                            if len(parts) == 2:
+                                artist, title = parts
+                                metadata = {
+                                    'artist': artist.strip(),
+                                    'title': title.strip(),
+                                    'duration': '--:--',
+                                    'timestamp': datetime.now().strftime("%H:%M:%S")
+                                }
+                                logging.debug(f"Updated metadata: {metadata}")
+                                self.current_metadata = metadata
+                                if self.playback_screen:
+                                    self.playback_screen.update_metadata(metadata)
+                                    # Force screen refresh after metadata update
+                                    if self.stdscr:
+                                        self.playback_screen.display(self.stdscr)
+                                        self.stdscr.refresh()
+                                break
 
     def _check_mpv(self) -> bool:
         """Check if MPV is installed and accessible"""
@@ -325,9 +318,15 @@ class SomaFMPlayer:
             logging.info(f"Playing channel: {channel['title']}")
             logging.debug(f"Stream URL: {stream_url}")
             
-            # Force metadata update
-            self.player.wait_for_property('metadata')
-            logging.debug("Waiting for metadata...")
+            # Set initial metadata
+            initial_metadata = {
+                'artist': 'Loading...',
+                'title': 'Loading...',
+                'duration': '--:--',
+                'timestamp': datetime.now().strftime("%H:%M:%S")
+            }
+            if self.playback_screen:
+                self.playback_screen.update_metadata(initial_metadata)
             
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
@@ -354,6 +353,9 @@ class SomaFMPlayer:
     def run(self):
         """Main application loop"""
         def main(stdscr):
+            # Store stdscr globally for updates
+            self.stdscr = stdscr
+            
             # Initialize colors
             self._init_colors()
             
