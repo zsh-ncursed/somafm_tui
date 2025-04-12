@@ -114,3 +114,12 @@ somafm
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 --- 
+
+# SomaFM TUI
+
+A terminal-based SomaFM player with a clean and intuitive interface.
+
+## Version
+Current version: 0.1.0
+
+## Features
