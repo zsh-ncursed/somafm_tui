@@ -121,5 +121,3 @@ A terminal-based SomaFM player with a clean and intuitive interface.
 
 ## Version
 Current version: 0.1.0
-
-## Features
