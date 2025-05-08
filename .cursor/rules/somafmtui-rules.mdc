@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Somafm_tui rules
+
+- If there are changes in the code that affect the application's display or its control, then after making the changes, you need to update the README.md file with the new information.
+Project Requirements for Developers:
+
+1. Always explore multiple solution options and choose the best one based on the following criteria:
+   - **Functionality of the solution**: The solution must work correctly and meet all requirements.
+   - **Code volume**: Less code is better, provided it does not compromise functionality or readability.
+   - **Number of files**: Fewer files are preferable, though this is not a critical factor.
+
+2. All project text, including comments and documentation, must be written in English.
+
+3. Before submitting changes to GitHub, always test the code thoroughly to ensure its correctness and functionality.
+
+4. If a problem arises, report it to the user with a clear and detailed description of the issue. 
+
+By adhering to these guidelines, we ensure a streamlined, efficient, and high-quality development process.

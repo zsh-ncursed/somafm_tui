@@ -23,18 +23,21 @@ wheels/
 # Virtual Environment
 venv/
 ENV/
-env/
-
-# Logs
-*.log
-logs/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Logs and temp files
+*.log
+/tmp/
+.somafmtmp/
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Project specific
 somafm_*.log

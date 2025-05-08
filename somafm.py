@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import curses
 import mpv
 import requests
@@ -8,10 +9,23 @@ import time
 import logging
 from typing import List, Dict
 from datetime import datetime
+from stream_buffer import StreamBuffer
+
+# Setup paths
+HOME = os.path.expanduser("~")
+CONFIG_DIR = os.path.join(HOME, ".somafm_tui")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "somafm.cfg")
+TEMP_DIR = "/tmp/.somafmtmp"
+CACHE_DIR = os.path.join(TEMP_DIR, "cache")
+
+# Create necessary directories
+os.makedirs(CONFIG_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Logging setup
 logging.basicConfig(
-    filename='/tmp/somafm.log',
+    filename=os.path.join(TEMP_DIR, 'somafm.log'),
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
@@ -133,6 +147,7 @@ class PlaybackScreen:
 
 class SomaFMPlayer:
     def __init__(self):
+        self.had_error = False
         # Check if MPV is installed
         if not self._check_mpv():
             print("Error: MPV player is not installed or not in PATH")
@@ -142,12 +157,16 @@ class SomaFMPlayer:
             print("  - Fedora: sudo dnf install mpv")
             sys.exit(1)
 
+        self._init_config()
         self.channels = self._fetch_channels()
+        
+        self.buffer = None
         self.player = mpv.MPV(
             input_default_bindings=True,
             input_vo_keyboard=True,
             osc=True
         )
+        
         self.current_channel = None
         self.current_index = 0
         self.is_playing = False
@@ -213,6 +232,39 @@ class SomaFMPlayer:
         curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Channel info
         curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Track metadata
         curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK)    # Instructions
+
+    def _init_config(self):
+        """Initialize configuration file if it doesn't exist"""
+        default_config = {
+            "# Configuration file for SomaFM TUI Player": "",
+            "# buffer_minutes: Duration of audio buffering in minutes": "",
+            "# buffer_size_mb: Maximum size of buffer in megabytes": "",
+            "buffer_minutes": 5,
+            "buffer_size_mb": 50
+        }
+        
+        try:
+            if not os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'w') as f:
+                    for key, value in default_config.items():
+                        if key.startswith('#'):
+                            f.write(f"{key}\n")
+                        else:
+                            f.write(f"{key}: {value}\n")
+                    
+            # Read actual config values (skip comments)
+            with open(CONFIG_FILE) as f:
+                config_lines = f.readlines()
+                config_dict = {}
+                for line in config_lines:
+                    if not line.startswith('#') and ':' in line:
+                        key, value = line.split(':', 1)
+                        config_dict[key.strip()] = int(value.strip())
+                self.config = config_dict
+        except Exception as e:
+            logging.error(f"Error initializing config: {e}")
+            # Use only actual config values, not comments
+            self.config = {k: v for k, v in default_config.items() if not k.startswith('#')}
 
     def _fetch_channels(self) -> List[Dict]:
         """Fetch channel list from SomaFM"""
@@ -301,11 +353,25 @@ class SomaFMPlayer:
             if not stream_url:
                 raise Exception(f"No MP3 stream found for channel {channel['title']}")
             
-            # Stop current playback if any
+            # Stop current playback and buffering if any
             if self.player:
                 self.player.stop()
+            if self.buffer:
+                self.buffer.stop_buffering()
+                self.buffer.clear()
             
-            # Start new playback
+            # Initialize new buffer
+            self.buffer = StreamBuffer(
+                url=stream_url,
+                buffer_minutes=self.config['buffer_minutes'],
+                buffer_size_mb=self.config['buffer_size_mb'],
+                cache_dir=CACHE_DIR
+            )
+            
+            # Start buffering
+            self.buffer.start_buffering()
+            
+            # Start playback
             self.player.play(stream_url)
             self.current_channel = channel
             self.is_playing = True
@@ -347,71 +413,95 @@ class SomaFMPlayer:
 
     def _cleanup(self):
         """Clean up resources"""
+        if self.buffer:
+            self.buffer.stop_buffering()
+            self.buffer.clear()
         if self.player:
             self.player.terminate()
+        if not self.had_error and os.path.exists(TEMP_DIR):
+            try:
+                for root, dirs, files in os.walk(TEMP_DIR, topdown=False):
+                    for name in files:
+                        os.remove(os.path.join(root, name))
+                    for name in dirs:
+                        os.rmdir(os.path.join(root, name))
+                os.rmdir(TEMP_DIR)
+            except Exception as e:
+                logging.error(f"Error cleaning up temp directory: {e}")
 
     def run(self):
         """Main application loop"""
         def main(stdscr):
-            # Store stdscr globally for updates
-            self.stdscr = stdscr
-            
-            # Initialize colors
-            self._init_colors()
-            
-            # Enable keypad mode for special keys
-            stdscr.keypad(True)
-            # Enable Unicode support
-            curses.raw()
-            # Enable non-blocking mode
-            stdscr.nodelay(False)
-            
-            # Main loop
-            while self.running:
-                if self.playback_screen:
-                    self.playback_screen.display(stdscr)
-                else:
-                    self._display_channels(stdscr, self.current_index)
+            try:
+                # Store stdscr globally for updates
+                self.stdscr = stdscr
                 
-                # Get user input
-                try:
-                    key = stdscr.get_wch()
-                    logging.debug(f"Pressed key: {key} (type: {type(key)})")
-                    
+                # Initialize colors
+                self._init_colors()
+                
+                # Enable keypad mode for special keys
+                stdscr.keypad(True)
+                # Enable Unicode support
+                curses.raw()
+                # Enable non-blocking mode
+                stdscr.nodelay(False)
+                
+                # Main loop
+                while self.running:
                     if self.playback_screen:
-                        # Проверяем нажатие клавиши 'q' в любой раскладке
-                        if key in ['q', 'й', 'Q', 'Й'] or key == curses.KEY_ESCAPE:
-                            logging.debug(f"Detected 'q' key press during playback (key: {key})")
-                            self.playback_screen = None
-                            self.player.stop()
-                            self.is_playing = False
-                            self.is_paused = False
-                            self.current_metadata = {
-                                'artist': 'Loading...',
-                                'title': 'Loading...',
-                                'duration': '--:--'
-                            }
-                            continue  # Возвращаемся к списку каналов
-                        elif key == ' ':
-                            self._toggle_playback()
+                        self.playback_screen.display(stdscr)
                     else:
-                        if key == curses.KEY_UP:
-                            self.current_index = max(0, self.current_index - 1)
-                        elif key == curses.KEY_DOWN:
-                            self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                        elif key in [curses.KEY_ENTER, '\n', '\r']:
-                            self._play_channel(self.channels[self.current_index])
-                        elif key in ['q', 'й', 'Q', 'Й'] or key == curses.KEY_ESCAPE:
-                            logging.debug(f"Detected 'q' key press in channel list (key: {key})")
-                            self.running = False
-                except curses.error:
-                    continue
-            
-            # Clean up
-            self._cleanup()
+                        self._display_channels(stdscr, self.current_index)
+                    
+                    # Get user input
+                    try:
+                        key = stdscr.get_wch()
+                        logging.debug(f"Pressed key: {key} (type: {type(key)})")
+                        
+                        if self.playback_screen:
+                            if key in ['q', 'й', 'Q', 'Й', chr(27)]:  # 27 is ESC
+                                logging.debug(f"Detected quit key in playback")
+                                self.playback_screen = None
+                                self.player.stop()
+                                self.is_playing = False
+                                self.is_paused = False
+                                self.current_metadata = {
+                                    'artist': 'Loading...',
+                                    'title': 'Loading...',
+                                    'duration': '--:--'
+                                }
+                            elif key == ' ':
+                                self._toggle_playback()
+                        else:
+                            if isinstance(key, str):
+                                if key in ['q', 'й', 'Q', 'Й', chr(27)]:  # 27 is ESC
+                                    logging.debug(f"Detected quit key in channel list")
+                                    self.running = False
+                                elif key in ['\n', '\r']:  # Handle Enter as string
+                                    self._play_channel(self.channels[self.current_index])
+                            else:  # Handle special keys
+                                if key == curses.KEY_UP:
+                                    self.current_index = max(0, self.current_index - 1)
+                                elif key == curses.KEY_DOWN:
+                                    self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                                elif key == curses.KEY_ENTER:  # Handle Enter as special key
+                                    self._play_channel(self.channels[self.current_index])
+                    except curses.error:
+                        continue
+            except Exception as e:
+                self.had_error = True
+                logging.error(f"Application error: {e}")
+                raise
+            finally:
+                self._cleanup()
 
-        # Run curses application
-        curses.wrapper(main)
+        try:
+            curses.wrapper(main)
+        except Exception as e:
+            self.had_error = True
+            logging.error(f"Fatal error: {e}")
+            print(f"An error occurred. Check logs at {os.path.join(TEMP_DIR, 'somafm.log')}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     player = SomaFMPlayer()
