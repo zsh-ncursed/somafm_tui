@@ -55,7 +55,8 @@ class PlaybackScreen:
         max_y, max_x = stdscr.getmaxyx()
         
         # Clear screen
-        stdscr.clear()
+        for y in range(max_y):
+            stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
         
         # Display channel name
         try:
@@ -226,12 +227,19 @@ class SomaFMPlayer:
     def _init_colors(self):
         """Initialize colors"""
         curses.start_color()
+        # Ещё более тёмный фон
+        if curses.can_change_color():
+            # Ещё более тёмный фон
+            curses.init_color(10, 80, 80, 80)  # Очень тёмно-серый, 8% от максимума
+            bg_color = 10
+        else:
+            bg_color = curses.COLOR_BLACK
         # Main colors
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)    # Header
-        curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)   # Selected channel
-        curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Channel info
-        curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Track metadata
-        curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK)    # Instructions
+        curses.init_pair(1, curses.COLOR_CYAN, bg_color)    # Header
+        curses.init_pair(2, curses.COLOR_GREEN, bg_color)   # Selected channel
+        curses.init_pair(3, curses.COLOR_YELLOW, bg_color)  # Channel info
+        curses.init_pair(4, curses.COLOR_MAGENTA, bg_color) # Track metadata
+        curses.init_pair(5, curses.COLOR_BLUE, bg_color)    # Instructions
 
     def _init_config(self):
         """Initialize configuration file if it doesn't exist"""
@@ -284,7 +292,8 @@ class SomaFMPlayer:
         visible_channels = max_y - 5  # Number of visible channels
         
         # Clear screen
-        stdscr.clear()
+        for y in range(max_y):
+            stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
         
         # Display header
         try:
@@ -317,7 +326,7 @@ class SomaFMPlayer:
                     stdscr.addstr(display_y, 0, f"> {title}", 
                                  curses.color_pair(2) | curses.A_REVERSE)
                 else:
-                    stdscr.addstr(display_y, 0, f"  {title}")
+                    stdscr.addstr(display_y, 0, f"  {title}", curses.color_pair(1))
             except curses.error:
                 continue
 
