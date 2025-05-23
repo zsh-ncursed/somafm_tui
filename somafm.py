@@ -555,7 +555,7 @@ noise_reduction = 85
                 os.remove(self.fifo_path)
             os.mkfifo(self.fifo_path)
             
-            self.player.play(stream_url, audio_file=self.fifo_path, audio_file_auto="no")
+            self.player.loadfile(stream_url, audio_file=self.fifo_path, audio_file_auto="no")
             
             # Create and launch CAVA
             if self.cava_available:
