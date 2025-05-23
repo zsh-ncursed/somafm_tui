@@ -44,16 +44,16 @@ install_system_deps() {
     
     if command -v pacman &> /dev/null; then
         # Arch Linux
-        sudo pacman -S --needed mpv python python-pip
+        sudo pacman -S --needed mpv python python-pip cava
     elif command -v apt-get &> /dev/null; then
         # Debian/Ubuntu
         sudo apt-get update
-        sudo apt-get install -y mpv python3 python3-pip
+        sudo apt-get install -y mpv python3 python3-pip cava
     elif command -v dnf &> /dev/null; then
         # Fedora
-        sudo dnf install -y mpv python3 python3-pip
+        sudo dnf install -y mpv python3 python3-pip cava
     else
-        print_warning "Could not determine package manager. Please install MPV manually."
+        print_warning "Could not determine package manager. Please install MPV and CAVA manually."
         return 1
     fi
     
@@ -88,6 +88,22 @@ main() {
             print_error "Failed to install MPV. Please install it manually."
             exit 1
         fi
+    fi
+    
+    # Check CAVA (for visualization)
+    if ! check_command cava; then
+        print_warning "CAVA not found (optional, for audio visualization). Attempting to install..."
+        if ! install_system_deps; then # This will attempt to install mpv again if it was also missing, which is okay.
+            print_warning "Failed to install CAVA. Please install it manually if you want audio visualization."
+        else
+            if ! check_command cava; then # Check again after install attempt
+                print_warning "CAVA still not found after install attempt. Please install it manually for visualization."
+            else
+                print_message "CAVA successfully installed."
+            fi
+        fi
+    else
+        print_message "CAVA found."
     fi
     
     # Create virtual environment

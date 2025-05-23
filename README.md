@@ -8,6 +8,7 @@ A console-based player for SomaFM internet radio with stream buffering support.
 - MPV media player
 - pip (Python package manager)
 - Terminal with UTF-8 support
+- CAVA (Console Audio Visualizer) - for the audio visualization feature (see [https://github.com/karlstav/cava](https://github.com/karlstav/cava)).
 
 ## Features
 
@@ -18,6 +19,7 @@ A console-based player for SomaFM internet radio with stream buffering support.
 - Real-time track metadata
 - Automatic configuration management
 - Error logging and recovery
+- Audio visualization on the playback screen (requires CAVA).
 
 ## Installation
 
@@ -25,19 +27,22 @@ A console-based player for SomaFM internet radio with stream buffering support.
 
 #### For Arch Linux:
 ```bash
-sudo pacman -S mpv python python-pip
+sudo pacman -S mpv python python-pip cava
 ```
+(CAVA is required for the audio visualization feature.)
 
 #### For Ubuntu/Debian:
 ```bash
 sudo apt-get update
-sudo apt-get install mpv python3 python3-pip
+sudo apt-get install mpv python3 python3-pip cava
 ```
+(CAVA is required for the audio visualization feature. On older Ubuntu/Debian versions, CAVA might need to be compiled from source or installed from a PPA if not available in standard repositories.)
 
 #### For Fedora:
 ```bash
-sudo dnf install mpv python3 python3-pip
+sudo dnf install mpv python3 python3-pip cava
 ```
+(CAVA is required for the audio visualization feature.)
 
 ### 2. Clone the Repository
 ```bash
@@ -126,4 +131,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Version
 Current version: 0.2.0
 
---- 
+---
