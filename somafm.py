@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 import os
 import curses
+import select
 import mpv
 import requests
 import json
 import sys
 import time
 import logging
+import shutil
+import subprocess
+import tempfile
 from typing import List, Dict
 from datetime import datetime
 from stream_buffer import StreamBuffer
@@ -31,9 +35,13 @@ logging.basicConfig(
 )
 
 class PlaybackScreen:
-    def __init__(self, player, channel):
+    def __init__(self, player, channel, cava_stdout=None):
         self.player = player
         self.channel = channel
+        self.cava_stdout = cava_stdout
+        self.last_bar_heights = []
+        self.cava_num_bars = 15  # Updated to match CAVA config
+        self.cava_max_value = 1000 # As per CAVA config (ascii_max_range)
         self.current_metadata = {
             'artist': 'Loading...',
             'title': 'Loading...',
@@ -54,10 +62,10 @@ class PlaybackScreen:
         logging.debug("PlaybackScreen.display() called")
         max_y, max_x = stdscr.getmaxyx()
         
-        # Clear screen
-        for y in range(max_y):
-            stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
-        
+        # Clear screen - done selectively now
+        stdscr.bkgd(' ', curses.color_pair(1)) # Set background for the whole window
+        stdscr.clear() # Clear entire screen with background
+
         # Display channel name
         try:
             channel_title = f"Channel: {self.channel['title']}"
@@ -113,6 +121,102 @@ class PlaybackScreen:
                          curses.color_pair(5) | curses.A_DIM)
         except curses.error:
             pass
+
+        # --- CAVA Visualization ---
+        viz_start_y = max_y // 2
+        viz_end_y = max_y - 3  # Inclusive last line for visualization
+        viz_drawable_height = viz_end_y - viz_start_y + 1
+
+        if self.cava_stdout:
+            if viz_drawable_height <= 0:
+                # Try to read and discard any pending CAVA data to prevent pipe blockage
+                try:
+                    readable, _, _ = select.select([self.cava_stdout], [], [], 0)
+                    if readable:
+                        _ = self.cava_stdout.readline() # Read and discard
+                except Exception:
+                    pass # Ignore errors here, as we are just trying to clear
+                self.last_bar_heights = [] # Clear any previous heights
+            else:
+                # Non-blocking read from CAVA
+                try:
+                    readable, _, _ = select.select([self.cava_stdout], [], [], 0)
+                    if readable:
+                        line = self.cava_stdout.readline().strip()
+                        if line:
+                            try:
+                                parts = line.split(';')
+                                if len(parts) >= self.cava_num_bars:
+                                    bar_heights = [int(p) for p in parts[:self.cava_num_bars] if p]
+                                    if len(bar_heights) == self.cava_num_bars:
+                                        self.last_bar_heights = bar_heights
+                            except ValueError:
+                                logging.warning(f"Could not parse CAVA data: '{line}'")
+                            # No need for a generic Exception here as it's mainly parsing
+                        elif not line and self.cava_process and self.cava_process.poll() is not None:
+                            # CAVA process might have exited
+                            logging.warning("CAVA stdout returned empty line and process has exited. Disabling CAVA for this session.")
+                            if self.cava_stdout: self.cava_stdout.close()
+                            self.cava_stdout = None # Stop further processing
+                except BrokenPipeError:
+                    logging.warning("Broken pipe when reading from CAVA. CAVA might have crashed. Disabling CAVA for this session.")
+                    if self.cava_stdout: self.cava_stdout.close()
+                    self.cava_stdout = None
+                except IOError as e:
+                    logging.warning(f"IOError reading from CAVA: {e}. Disabling CAVA for this session.")
+                    if self.cava_stdout: self.cava_stdout.close()
+                    self.cava_stdout = None
+                except Exception as e: # Catch any other unexpected errors during CAVA read/parse
+                    logging.error(f"Unexpected error reading or parsing CAVA data: {e}. Disabling CAVA for this session.")
+                    if self.cava_stdout: self.cava_stdout.close()
+                    self.cava_stdout = None # Stop further processing
+                
+                # Clear visualization area (from viz_start_y to viz_end_y inclusive)
+                if viz_drawable_height > 0 : # Ensure we only clear if there's an area to clear
+                    for y_clear in range(viz_start_y, viz_end_y + 1):
+                        try:
+                            stdscr.addstr(y_clear, 0, " " * (max_x -1), curses.color_pair(1))
+                        except curses.error: # Ignore errors if writing outside bounds
+                            pass
+
+                # Draw bars using self.last_bar_heights
+                current_heights_to_draw = self.last_bar_heights
+
+                if hasattr(self, 'last_bar_heights') and current_heights_to_draw and viz_drawable_height > 0:
+                    terminal_width = max_x -1 
+                    actual_bar_char_width = 1 
+
+                    if self.cava_num_bars > 0:
+                        spacing_total_width = terminal_width - (self.cava_num_bars * actual_bar_char_width)
+                        spacing_per_gap = spacing_total_width / (self.cava_num_bars + 1)
+                        spacing_per_gap = max(0, spacing_per_gap) 
+                    else:
+                        spacing_per_gap = 0
+
+                    current_x_float = spacing_per_gap 
+
+                    for height_val in current_heights_to_draw:
+                        scaled_bar_screen_height = int((height_val / self.cava_max_value) * viz_drawable_height)
+                        scaled_bar_screen_height = max(0, min(scaled_bar_screen_height, viz_drawable_height))
+
+                        x_pos = int(current_x_float)
+
+                        for char_offset in range(scaled_bar_screen_height):
+                            draw_y = viz_end_y - char_offset
+                            if 0 <= x_pos < (max_x -1) and viz_start_y <= draw_y <= viz_end_y : 
+                                try:
+                                    stdscr.addstr(draw_y, x_pos, "█", curses.color_pair(4))
+                                except curses.error:
+                                    pass 
+                        
+                        current_x_float += actual_bar_char_width + spacing_per_gap
+        elif viz_drawable_height > 0 : # Ensure area is cleared if CAVA is not available / becomes unavailable
+            for y_clear in range(viz_start_y, viz_end_y + 1):
+                try:
+                    stdscr.addstr(y_clear, 0, " " * (max_x -1), curses.color_pair(1))
+                except curses.error:
+                    pass
+        # --- End CAVA Visualization ---
 
         stdscr.refresh()
 
@@ -181,7 +285,17 @@ class SomaFMPlayer:
         self.running = True
         self.playback_screen = None
         self.stdscr = None  # Store stdscr for updates
+        self.fifo_path = "/tmp/somafm_audio.fifo"
         
+        # CAVA related attributes
+        self.cava_executable_path = shutil.which("cava")
+        self.cava_available = self.cava_executable_path is not None
+        self.cava_process = None
+        self.cava_stdout = None
+        self.cava_config_path = None
+        if not self.cava_available:
+            logging.warning("CAVA executable not found in PATH. Visualization will be disabled.")
+
         # Set up metadata observer
         @self.player.property_observer('metadata')
         def metadata_handler(name, value):
@@ -212,6 +326,42 @@ class SomaFMPlayer:
                                         self.playback_screen.display(self.stdscr)
                                         self.stdscr.refresh()
                                 break
+
+    def _create_cava_config(self):
+        """Create CAVA configuration file"""
+        config_content = f"""
+[general]
+framerate = 20
+bars = 15
+autosens = 1
+sensitivity = 100
+
+[input]
+method = fifo
+source = {self.fifo_path}
+sample_rate = 44100
+sample_bits = 16
+
+[output]
+method = raw
+raw_target = /dev/stdout
+data_format = ascii
+bar_delimiter = ;
+frame_delimiter = \\n
+channels = mono
+
+[smoothing]
+noise_reduction = 85
+"""
+        try:
+            # Create a temporary file for CAVA config
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.cfg', prefix='cava_config_') as tmp_file:
+                tmp_file.write(config_content)
+                self.cava_config_path = tmp_file.name
+            logging.debug(f"CAVA config created at {self.cava_config_path}")
+        except Exception as e:
+            logging.error(f"Error creating CAVA config: {e}")
+            self.cava_config_path = None
 
     def _check_mpv(self) -> bool:
         """Check if MPV is installed and accessible"""
@@ -365,6 +515,25 @@ class SomaFMPlayer:
             # Stop current playback and buffering if any
             if self.player:
                 self.player.stop()
+            
+            # Terminate existing CAVA process if any
+            if self.cava_process:
+                self.cava_process.terminate()
+                try:
+                    self.cava_process.wait(timeout=0.5) # Wait for a short period
+                except subprocess.TimeoutExpired:
+                    self.cava_process.kill() # Force kill if terminate fails
+                if self.cava_stdout:
+                    self.cava_stdout.close()
+                self.cava_process = None
+                self.cava_stdout = None
+            if self.cava_config_path and os.path.exists(self.cava_config_path):
+                try:
+                    os.remove(self.cava_config_path)
+                except OSError as e:
+                    logging.error(f"Error removing old CAVA config {self.cava_config_path}: {e}")
+                self.cava_config_path = None
+
             if self.buffer:
                 self.buffer.stop_buffering()
                 self.buffer.clear()
@@ -381,13 +550,52 @@ class SomaFMPlayer:
             self.buffer.start_buffering()
             
             # Start playback
-            self.player.play(stream_url)
+            # Create FIFO for CAVA
+            if os.path.exists(self.fifo_path):
+                os.remove(self.fifo_path)
+            os.mkfifo(self.fifo_path)
+            
+            self.player.play(stream_url, audio_file=self.fifo_path, audio_file_auto="no")
+            
+            # Create and launch CAVA
+            if self.cava_available:
+                self._create_cava_config()
+                if self.cava_config_path:
+                    try:
+                        self.cava_process = subprocess.Popen(
+                            [self.cava_executable_path, "-p", self.cava_config_path],
+                            stdout=subprocess.PIPE,
+                            stdin=subprocess.DEVNULL,
+                            text=True
+                        )
+                        self.cava_stdout = self.cava_process.stdout
+                        logging.info(f"CAVA process started with PID: {self.cava_process.pid}")
+                    except FileNotFoundError: # Should not happen if cava_available is True and path is correct
+                        logging.error(f"CAVA executable not found at {self.cava_executable_path} despite earlier check. Visualization disabled.")
+                        self.cava_available = False # Mark as unavailable
+                        self.cava_process = None
+                        self.cava_stdout = None
+                    except OSError as e:
+                        logging.error(f"Error launching CAVA with {self.cava_executable_path}: {e}. Visualization disabled.")
+                        self.cava_process = None
+                        self.cava_stdout = None
+                    except Exception as e: # Catch any other unexpected errors
+                        logging.error(f"Unexpected error launching CAVA: {e}. Visualization disabled.")
+                        self.cava_process = None
+                        self.cava_stdout = None
+                else:
+                    logging.warning("CAVA config path not set, CAVA not launched.")
+                    self.cava_stdout = None # Ensure it's None
+            else:
+                logging.warning("CAVA not available or executable not found. Visualization will be disabled.")
+                self.cava_stdout = None # Ensure it's None
+
             self.current_channel = channel
             self.is_playing = True
             self.is_paused = False
             
             # Create playback screen
-            self.playback_screen = PlaybackScreen(self.player, channel)
+            self.playback_screen = PlaybackScreen(self.player, channel, cava_stdout=self.cava_stdout)
             
             # Log channel change
             logging.info(f"Playing channel: {channel['title']}")
@@ -422,6 +630,35 @@ class SomaFMPlayer:
 
     def _cleanup(self):
         """Clean up resources"""
+        # Terminate CAVA process
+        if self.cava_process:
+            logging.debug(f"Terminating CAVA process {self.cava_process.pid}")
+            self.cava_process.terminate()
+            try:
+                self.cava_process.wait(timeout=1) # Wait for CAVA to terminate
+            except subprocess.TimeoutExpired:
+                logging.warning(f"CAVA process {self.cava_process.pid} did not terminate in time, killing.")
+                self.cava_process.kill() # Force kill if it doesn't terminate
+            if self.cava_stdout:
+                self.cava_stdout.close()
+            self.cava_process = None
+            self.cava_stdout = None
+        
+        # Remove CAVA config file
+        if self.cava_config_path and os.path.exists(self.cava_config_path):
+            try:
+                os.remove(self.cava_config_path)
+                logging.debug(f"Removed CAVA config file {self.cava_config_path}")
+            except OSError as e:
+                logging.error(f"Error removing CAVA config file {self.cava_config_path}: {e}")
+            self.cava_config_path = None
+
+        # Remove FIFO on cleanup
+        if os.path.exists(self.fifo_path):
+            try:
+                os.remove(self.fifo_path)
+            except OSError as e:
+                logging.error(f"Error removing FIFO {self.fifo_path}: {e}")
         if self.buffer:
             self.buffer.stop_buffering()
             self.buffer.clear()
@@ -470,6 +707,24 @@ class SomaFMPlayer:
                         if self.playback_screen:
                             if key in ['q', 'й', 'Q', 'Й', chr(27)]:  # 27 is ESC
                                 logging.debug(f"Detected quit key in playback")
+                                # Terminate CAVA process
+                                if self.cava_process:
+                                    self.cava_process.terminate()
+                                    try:
+                                        self.cava_process.wait(timeout=0.5)
+                                    except subprocess.TimeoutExpired:
+                                        self.cava_process.kill()
+                                    if self.cava_stdout:
+                                        self.cava_stdout.close()
+                                    self.cava_process = None
+                                    self.cava_stdout = None
+                                if self.cava_config_path and os.path.exists(self.cava_config_path):
+                                    try:
+                                        os.remove(self.cava_config_path)
+                                    except OSError as e:
+                                        logging.error(f"Error removing CAVA config {self.cava_config_path}: {e}")
+                                    self.cava_config_path = None
+                                
                                 self.playback_screen = None
                                 self.player.stop()
                                 self.is_playing = False
