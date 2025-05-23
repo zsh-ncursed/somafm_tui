@@ -567,8 +567,9 @@ noise_reduction = 85
             
             # Create and launch CAVA
             if self.cava_available:
-                self._create_cava_config()
+                self._create_cava_config() # Should set self.cava_config_path
                 if self.cava_config_path:
+                    # Corrected try-except block for CAVA launch:
                     try:
                         self.cava_process = subprocess.Popen(
                             [self.cava_executable_path, "-p", self.cava_config_path],
@@ -577,46 +578,34 @@ noise_reduction = 85
                             text=True
                         )
                         self.cava_stdout = self.cava_process.stdout
-                    # --- Added Logging ---
-                    logging.info("Attempted to launch CAVA.")
-                    if self.cava_process:
-                        logging.info(f"CAVA process started with PID: {self.cava_process.pid}")
+                        
+                        # Logging for successful launch attempt, inside the try block:
+                        logging.info("CAVA subprocess initiated.") 
+                        logging.info(f"CAVA process PID: {self.cava_process.pid}")
                         logging.info(f"CAVA stdout pipe: {self.cava_stdout}")
-                    else:
-                        logging.error("CAVA process object is None after launch attempt.")
-                    # --- End Added Logging ---
-                    except FileNotFoundError: # Should not happen if cava_available is True and path is correct
-                        logging.error(f"CAVA executable not found at {self.cava_executable_path} despite earlier check. Visualization disabled.")
-                        # --- Added Logging for this specific case ---
-                        logging.info("Attempted to launch CAVA.") # Log attempt even for FileNotFoundError
-                        logging.error("CAVA process object is None after launch attempt (FileNotFound).")
-                        # --- End Added Logging ---
-                        self.cava_available = False # Mark as unavailable
+
+                    except FileNotFoundError:
+                        logging.error(f"CAVA executable not found at '{self.cava_executable_path}' during Popen. Visualization disabled.")
+                        self.cava_available = False # Prevent further attempts if it failed here
                         self.cava_process = None
                         self.cava_stdout = None
                     except OSError as e:
-                        logging.error(f"Error launching CAVA with {self.cava_executable_path}: {e}. Visualization disabled.")
-                        # --- Added Logging for this specific case ---
-                        logging.info("Attempted to launch CAVA.") # Log attempt even for OSError
-                        logging.error("CAVA process object is None after launch attempt (OSError).")
-                        # --- End Added Logging ---
+                        logging.error(f"OSError launching CAVA with '{self.cava_executable_path}': {e}. Visualization disabled.")
                         self.cava_process = None
                         self.cava_stdout = None
-                    except Exception as e: # Catch any other unexpected errors
-                        logging.error(f"Unexpected error launching CAVA: {e}. Visualization disabled.")
-                        # --- Added Logging for this specific case ---
-                        logging.info("Attempted to launch CAVA.") # Log attempt even for other Exceptions
-                        logging.error("CAVA process object is None after launch attempt (Exception).")
-                        # --- End Added Logging ---
+                    except Exception as e:
+                        logging.error(f"Unexpected Exception launching CAVA: {e}. Visualization disabled.")
                         self.cava_process = None
                         self.cava_stdout = None
                 else:
-                    logging.warning("CAVA config path not set, CAVA not launched.")
-                    self.cava_stdout = None # Ensure it's None
+                    logging.warning("CAVA config path not set (e.g., temp file creation failed), CAVA not launched.")
+                    self.cava_stdout = None # Ensure cava_stdout is None
             else:
-                logging.warning("CAVA not available or executable not found. Visualization will be disabled.")
-                self.cava_stdout = None # Ensure it's None
-
+                # This log is from __init__ if shutil.which fails,
+                # but good to have a state check here too or rely on self.cava_stdout being None.
+                logging.warning("CAVA not available (pre-check failed or failed previous launch). Visualization will be disabled.")
+                self.cava_stdout = None # Ensure cava_stdout is None
+            
             self.current_channel = channel
             self.is_playing = True
             self.is_paused = False
