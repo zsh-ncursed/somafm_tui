@@ -143,6 +143,7 @@ class PlaybackScreen:
                     readable, _, _ = select.select([self.cava_stdout], [], [], 0)
                     if readable:
                         line = self.cava_stdout.readline().strip()
+                        logging.debug(f"CAVA raw line: '{line}'") # Added logging
                         if line:
                             try:
                                 parts = line.split(';')
@@ -150,6 +151,7 @@ class PlaybackScreen:
                                     bar_heights = [int(p) for p in parts[:self.cava_num_bars] if p]
                                     if len(bar_heights) == self.cava_num_bars:
                                         self.last_bar_heights = bar_heights
+                                        logging.debug(f"CAVA parsed heights: {bar_heights}") # Added logging
                             except ValueError:
                                 logging.warning(f"Could not parse CAVA data: '{line}'")
                             # No need for a generic Exception here as it's mainly parsing
@@ -195,9 +197,15 @@ class PlaybackScreen:
 
                     current_x_float = spacing_per_gap 
 
-                    for height_val in current_heights_to_draw:
+                    for bar_idx, height_val in enumerate(current_heights_to_draw): # Added bar_idx
                         scaled_bar_screen_height = int((height_val / self.cava_max_value) * viz_drawable_height)
                         scaled_bar_screen_height = max(0, min(scaled_bar_screen_height, viz_drawable_height))
+
+                        # Added logging for the first bar's details (and now for all bars if DEBUG level is very verbose, but primarily for the first)
+                        if bar_idx == 0: # Log details for the first bar of every frame
+                            logging.debug(f"Bar {bar_idx}: raw={height_val}, max_raw={self.cava_max_value}, viz_draw_h={viz_drawable_height}, scaled_h={scaled_bar_screen_height}")
+                        # Example of more verbose logging for all bars:
+                        # logging.debug(f"Bar {bar_idx}: raw={height_val}, max_raw={self.cava_max_value}, viz_draw_h={viz_drawable_height}, scaled_h={scaled_bar_screen_height}")
 
                         x_pos = int(current_x_float)
 
@@ -347,7 +355,7 @@ method = raw
 raw_target = /dev/stdout
 data_format = ascii
 bar_delimiter = ;
-frame_delimiter = \\n
+frame_delimiter = 10
 channels = mono
 
 [smoothing]
@@ -569,18 +577,37 @@ noise_reduction = 85
                             text=True
                         )
                         self.cava_stdout = self.cava_process.stdout
+                    # --- Added Logging ---
+                    logging.info("Attempted to launch CAVA.")
+                    if self.cava_process:
                         logging.info(f"CAVA process started with PID: {self.cava_process.pid}")
+                        logging.info(f"CAVA stdout pipe: {self.cava_stdout}")
+                    else:
+                        logging.error("CAVA process object is None after launch attempt.")
+                    # --- End Added Logging ---
                     except FileNotFoundError: # Should not happen if cava_available is True and path is correct
                         logging.error(f"CAVA executable not found at {self.cava_executable_path} despite earlier check. Visualization disabled.")
+                        # --- Added Logging for this specific case ---
+                        logging.info("Attempted to launch CAVA.") # Log attempt even for FileNotFoundError
+                        logging.error("CAVA process object is None after launch attempt (FileNotFound).")
+                        # --- End Added Logging ---
                         self.cava_available = False # Mark as unavailable
                         self.cava_process = None
                         self.cava_stdout = None
                     except OSError as e:
                         logging.error(f"Error launching CAVA with {self.cava_executable_path}: {e}. Visualization disabled.")
+                        # --- Added Logging for this specific case ---
+                        logging.info("Attempted to launch CAVA.") # Log attempt even for OSError
+                        logging.error("CAVA process object is None after launch attempt (OSError).")
+                        # --- End Added Logging ---
                         self.cava_process = None
                         self.cava_stdout = None
                     except Exception as e: # Catch any other unexpected errors
                         logging.error(f"Unexpected error launching CAVA: {e}. Visualization disabled.")
+                        # --- Added Logging for this specific case ---
+                        logging.info("Attempted to launch CAVA.") # Log attempt even for other Exceptions
+                        logging.error("CAVA process object is None after launch attempt (Exception).")
+                        # --- End Added Logging ---
                         self.cava_process = None
                         self.cava_stdout = None
                 else:
