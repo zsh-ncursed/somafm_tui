@@ -109,7 +109,7 @@ class PlaybackScreen:
 
         # Display instructions
         try:
-            stdscr.addstr(max_y - 2, 0, "q - back to channel list", 
+            stdscr.addstr(max_y - 2, 0, "q - back to channel list  ♥  f - add to favorites", 
                          curses.color_pair(5) | curses.A_DIM)
         except curses.error:
             pass
@@ -481,6 +481,16 @@ class SomaFMPlayer:
                                 }
                             elif key == ' ':
                                 self._toggle_playback()
+                            elif key in ['f', 'F']:
+                                # Добавление в избранное
+                                fav_dir = os.path.join(HOME, ".somafm_tui")
+                                fav_file = os.path.join(fav_dir, "favorites.list")
+                                os.makedirs(fav_dir, exist_ok=True)
+                                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                meta = self.playback_screen.current_metadata
+                                fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
+                                with open(fav_file, "a") as f:
+                                    f.write(fav_line)
                         else:
                             if isinstance(key, str):
                                 if key in ['q', 'й', 'Q', 'Й', chr(27)]:  # 27 is ESC

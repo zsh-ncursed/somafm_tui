@@ -126,4 +126,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Version
 Current version: 0.2.0
 
+## Добавление в избранное
+
+На экране воспроизведения нажмите `f`, чтобы добавить текущую композицию в избранное. Первая запись создаёт файл `~/.somafm_tui/favorites.list`. Формат: Автор - Название (дата-время).
+
 --- 
