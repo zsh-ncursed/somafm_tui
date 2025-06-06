@@ -17,6 +17,7 @@ CONFIG_DIR = os.path.join(HOME, ".somafm_tui")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "somafm.cfg")
 TEMP_DIR = "/tmp/.somafmtmp"
 CACHE_DIR = os.path.join(TEMP_DIR, "cache")
+CHANNEL_USAGE_FILE = os.path.join(CONFIG_DIR, "channel_usage.json")
 
 # Create necessary directories
 os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -275,11 +276,27 @@ class SomaFMPlayer:
             self.config = {k: v for k, v in default_config.items() if not k.startswith('#')}
 
     def _fetch_channels(self) -> List[Dict]:
-        """Fetch channel list from SomaFM"""
+        """Fetch channel list from SomaFM and sort by last played"""
         try:
             response = requests.get('https://api.somafm.com/channels.json')
             channels = response.json()['channels']
-            print(f"Channels received: {len(channels)}")  # Debug information
+            # Загрузка usage
+            if os.path.exists(CHANNEL_USAGE_FILE):
+                with open(CHANNEL_USAGE_FILE, 'r') as f:
+                    usage = json.load(f)
+            else:
+                usage = {}
+            # Очищаем usage от несуществующих каналов
+            valid_ids = {c['id'] for c in channels}
+            usage = {k: v for k, v in usage.items() if k in valid_ids}
+            # Сортировка каналов
+            def sort_key(ch):
+                last = usage.get(ch['id'])
+                return -(last if last else 0)
+            channels.sort(key=sort_key, reverse=False)
+            # Сохраняем очищенный usage
+            with open(CHANNEL_USAGE_FILE, 'w') as f:
+                json.dump(usage, f)
             return channels
         except Exception as e:
             print(f"Error fetching channel list: {e}")
@@ -350,8 +367,22 @@ class SomaFMPlayer:
         stdscr.refresh()
 
     def _play_channel(self, channel: Dict):
-        """Play selected channel"""
+        """Play selected channel and update last played time"""
         try:
+            # Update last played
+            now = int(time.time())
+            if os.path.exists(CHANNEL_USAGE_FILE):
+                with open(CHANNEL_USAGE_FILE, 'r') as f:
+                    usage = json.load(f)
+            else:
+                usage = {}
+            usage[channel['id']] = now
+            # Clean up usage (удаляем несуществующие)
+            valid_ids = {c['id'] for c in self.channels}
+            usage = {k: v for k, v in usage.items() if k in valid_ids}
+            with open(CHANNEL_USAGE_FILE, 'w') as f:
+                json.dump(usage, f)
+            
             # Get stream URL from playlists
             stream_url = None
             for playlist in channel.get('playlists', []):
