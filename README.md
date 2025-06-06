@@ -80,11 +80,13 @@ buffer_size_mb: 50
 - ↑/↓: Navigate through channels
 - Enter: Play selected channel
 - Space: Pause/Resume playback
+- f: Add current track to favorites
 - q/ESC: Return to channel list or exit
 
 ### Files and Directories
 
 - Configuration: `~/.somafm_tui/somafm.cfg`
+- Favorites: `~/.somafm_tui/favorites.list`
 - Temporary files: `/tmp/.somafmtmp/`
 - Logs: `/tmp/.somafmtmp/somafm.log`
 
@@ -124,10 +126,10 @@ buffer_size_mb: 50
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version
-Current version: 0.2.0
+Current version: 0.2.1
 
-## Добавление в избранное
+## Favorites Feature
 
-На экране воспроизведения нажмите `f`, чтобы добавить текущую композицию в избранное. Первая запись создаёт файл `~/.somafm_tui/favorites.list`. Формат: Автор - Название (дата-время).
+On the playback screen, press `f` to add the current track to favorites. The first entry creates the file `~/.somafm_tui/favorites.list`. Format: Artist - Title (date-time).
 
 --- 
