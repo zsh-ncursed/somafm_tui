@@ -7,7 +7,7 @@ import json
 import sys
 import time
 import logging
-from typing import List, Dict
+from typing import List, Dict, Set
 from datetime import datetime
 from stream_buffer import StreamBuffer
 
@@ -18,6 +18,7 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "somafm.cfg")
 TEMP_DIR = "/tmp/.somafmtmp"
 CACHE_DIR = os.path.join(TEMP_DIR, "cache")
 CHANNEL_USAGE_FILE = os.path.join(CONFIG_DIR, "channel_usage.json")
+CHANNEL_FAVORITES_FILE = os.path.join(CONFIG_DIR, "channel_favorites.json")
 
 # Create necessary directories
 os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -241,6 +242,7 @@ class SomaFMPlayer:
         curses.init_pair(3, curses.COLOR_YELLOW, bg_color)  # Channel info
         curses.init_pair(4, curses.COLOR_MAGENTA, bg_color) # Track metadata
         curses.init_pair(5, curses.COLOR_BLUE, bg_color)    # Instructions
+        curses.init_pair(6, curses.COLOR_RED, bg_color)     # Favorite icon
 
     def _init_config(self):
         """Initialize configuration file if it doesn't exist"""
@@ -319,6 +321,9 @@ class SomaFMPlayer:
         except curses.error:
             pass
         
+        # Load channel favorites
+        channel_favorites = self._load_channel_favorites()
+
         # Fixed cursor position at the second line
         cursor_y = 2
         
@@ -338,12 +343,16 @@ class SomaFMPlayer:
             # Truncate long channel names
             title = channel['title'][:max_x-4]  # Leave space for "> " and padding
             
+            # Add favorite icon if channel is favorited
+            fav_icon = "♥ " if channel['id'] in channel_favorites else "  "
+            display_title = f"{fav_icon}{title}"
+
             try:
                 if i + self.scroll_offset == selected_index:
-                    stdscr.addstr(display_y, 0, f"> {title}", 
+                    stdscr.addstr(display_y, 0, f"> {display_title}", 
                                  curses.color_pair(2) | curses.A_REVERSE)
                 else:
-                    stdscr.addstr(display_y, 0, f"  {title}", curses.color_pair(1))
+                    stdscr.addstr(display_y, 0, f"  {display_title}", curses.color_pair(1))
             except curses.error:
                 continue
 
@@ -359,7 +368,7 @@ class SomaFMPlayer:
 
         # Display instructions
         try:
-            stdscr.addstr(max_y - 1, 0, "↑↓ - select channel | Enter - play | q - quit", 
+            stdscr.addstr(max_y - 1, 0, "↑↓ (j/k) - select channel | Enter (;) - play | q (h) - quit | ♥ f - add channel to favorites", 
                          curses.color_pair(5) | curses.A_DIM)
         except curses.error:
             pass
@@ -513,7 +522,7 @@ class SomaFMPlayer:
                             elif key == ' ':
                                 self._toggle_playback()
                             elif key in ['f', 'F']:
-                                # Добавление в избранное
+                                # Добавление в избранное (трек)
                                 fav_dir = os.path.join(HOME, ".somafm_tui")
                                 fav_file = os.path.join(fav_dir, "favorites.list")
                                 os.makedirs(fav_dir, exist_ok=True)
@@ -524,15 +533,18 @@ class SomaFMPlayer:
                                     f.write(fav_line)
                         else:
                             if isinstance(key, str):
-                                if key in ['q', 'й', 'Q', 'Й', chr(27)]:  # 27 is ESC
+                                if key in ['q', 'й', 'Q', 'Й', chr(27), 'h']:  # 27 is ESC
                                     logging.debug(f"Detected quit key in channel list")
                                     self.running = False
-                                elif key in ['\n', '\r']:  # Handle Enter as string
+                                elif key in ['\n', '\r', ';']:  # Handle Enter as string
                                     self._play_channel(self.channels[self.current_index])
+                                elif key in ['f', 'F']:
+                                    self._toggle_channel_favorite(self.channels[self.current_index]['id'])
+                                    self._display_channels(stdscr, self.current_index)
                             else:  # Handle special keys
-                                if key == curses.KEY_UP:
+                                if key == curses.KEY_UP or key == ord('k'):
                                     self.current_index = max(0, self.current_index - 1)
-                                elif key == curses.KEY_DOWN:
+                                elif key == curses.KEY_DOWN or key == ord('j'):
                                     self.current_index = min(len(self.channels) - 1, self.current_index + 1)
                                 elif key == curses.KEY_ENTER:  # Handle Enter as special key
                                     self._play_channel(self.channels[self.current_index])
@@ -552,6 +564,32 @@ class SomaFMPlayer:
             logging.error(f"Fatal error: {e}")
             print(f"An error occurred. Check logs at {os.path.join(TEMP_DIR, 'somafm.log')}")
             sys.exit(1)
+
+    def _load_channel_favorites(self) -> Set[str]:
+        """Load favorite channel IDs from file"""
+        if os.path.exists(CHANNEL_FAVORITES_FILE):
+            with open(CHANNEL_FAVORITES_FILE, 'r') as f:
+                try:
+                    return set(json.load(f))
+                except json.JSONDecodeError:
+                    return set()
+        return set()
+
+    def _save_channel_favorites(self, favorites: Set[str]):
+        """Save favorite channel IDs to file"""
+        with open(CHANNEL_FAVORITES_FILE, 'w') as f:
+            json.dump(list(favorites), f)
+
+    def _toggle_channel_favorite(self, channel_id: str):
+        """Toggle favorite status for a channel"""
+        favorites = self._load_channel_favorites()
+        if channel_id in favorites:
+            favorites.remove(channel_id)
+            logging.debug(f"Channel {channel_id} removed from favorites.")
+        else:
+            favorites.add(channel_id)
+            logging.debug(f"Channel {channel_id} added to favorites.")
+        self._save_channel_favorites(favorites)
 
 if __name__ == "__main__":
     player = SomaFMPlayer()
