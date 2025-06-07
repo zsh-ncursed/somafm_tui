@@ -1,7 +1,7 @@
 # SomaFM TUI Player
 
 A console-based player for SomaFM internet radio with stream buffering support.
-![smtui](https://github.com/user-attachments/assets/ad7a61bf-ab4a-464c-a8d4-6fe84f1517cf)
+![2025-06-07_12 15 18-scrot](https://github.com/user-attachments/assets/c5ee3ebb-add9-4d08-850f-d8d2a25d47ec)
 ![smtuiplchan](https://github.com/user-attachments/assets/42ce853b-461a-4a22-9b71-9f4bbf111dd9)
 
 ## System Requirements
