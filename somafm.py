@@ -368,7 +368,7 @@ class SomaFMPlayer:
 
         # Display instructions
         try:
-            stdscr.addstr(max_y - 1, 0, "↑↓ (j/k) - select channel | Enter (;) - play | q (h) - quit | ♥ f - add channel to favorites", 
+            stdscr.addstr(max_y - 1, 0, "↑↓ (j/k) - select channel | Enter (l) - play | q (h) - quit | ♥ f - add channel to favorites", 
                          curses.color_pair(5) | curses.A_DIM)
         except curses.error:
             pass
@@ -531,20 +531,35 @@ class SomaFMPlayer:
                                 fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
                                 with open(fav_file, "a") as f:
                                     f.write(fav_line)
+                            elif key in ['h', 'H']: # Added h/H for back from playback
+                                logging.debug(f"Detected h/H key in playback")
+                                self.playback_screen = None
+                                self.player.stop()
+                                self.is_playing = False
+                                self.is_paused = False
+                                self.current_metadata = {
+                                    'artist': 'Loading...',
+                                    'title': 'Loading...',
+                                    'duration': '--:--'
+                                }
                         else:
                             if isinstance(key, str):
                                 if key in ['q', 'й', 'Q', 'Й', chr(27), 'h']:  # 27 is ESC
                                     logging.debug(f"Detected quit key in channel list")
                                     self.running = False
-                                elif key in ['\n', '\r', ';']:  # Handle Enter as string
+                                elif key in ['\n', '\r', 'l']:  # Handle Enter as string
                                     self._play_channel(self.channels[self.current_index])
                                 elif key in ['f', 'F']:
                                     self._toggle_channel_favorite(self.channels[self.current_index]['id'])
                                     self._display_channels(stdscr, self.current_index)
-                            else:  # Handle special keys
-                                if key == curses.KEY_UP or key == ord('k'):
+                                elif key == 'k':
                                     self.current_index = max(0, self.current_index - 1)
-                                elif key == curses.KEY_DOWN or key == ord('j'):
+                                elif key == 'j':
+                                    self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                            else:  # Handle special keys
+                                if key == curses.KEY_UP:
+                                    self.current_index = max(0, self.current_index - 1)
+                                elif key == curses.KEY_DOWN:
                                     self.current_index = min(len(self.channels) - 1, self.current_index + 1)
                                 elif key == curses.KEY_ENTER:  # Handle Enter as special key
                                     self._play_channel(self.channels[self.current_index])
