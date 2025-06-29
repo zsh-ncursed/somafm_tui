@@ -33,9 +33,10 @@ logging.basicConfig(
 )
 
 class PlaybackScreen:
-    def __init__(self, player, channel):
+    def __init__(self, player, channel, buffer):
         self.player = player
         self.channel = channel
+        self.buffer = buffer
         self.current_metadata = {
             'artist': 'Loading...',
             'title': 'Loading...',
@@ -147,6 +148,25 @@ class PlaybackScreen:
             curses.doupdate()
         else:
             logging.debug("Metadata unchanged, skipping update")
+
+    def show_notification(self, stdscr, message, timeout=1.5):
+        """Показать уведомление поверх экрана на короткое время"""
+        max_y, max_x = stdscr.getmaxyx()
+        win_width = min(len(message) + 4, max_x)
+        win_height = 3
+        start_y = max_y // 2 - win_height // 2
+        start_x = max_x // 2 - win_width // 2
+        try:
+            notif_win = curses.newwin(win_height, win_width, start_y, start_x)
+            notif_win.bkgd(' ', curses.color_pair(3) | curses.A_BOLD)
+            notif_win.box()
+            notif_win.addstr(1, 2, message[:win_width-4])
+            notif_win.refresh()
+            curses.napms(int(timeout * 1000))
+            notif_win.clear()
+            notif_win.refresh()
+        except curses.error:
+            pass
 
 class SomaFMPlayer:
     def __init__(self):
@@ -427,7 +447,7 @@ class SomaFMPlayer:
             self.is_paused = False
             
             # Create playback screen
-            self.playback_screen = PlaybackScreen(self.player, channel)
+            self.playback_screen = PlaybackScreen(self.player, channel, self.buffer)
             
             # Log channel change
             logging.info(f"Playing channel: {channel['title']}")
@@ -531,6 +551,9 @@ class SomaFMPlayer:
                                 fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
                                 with open(fav_file, "a") as f:
                                     f.write(fav_line)
+                                # Показать уведомление с названием и автором
+                                notif_msg = f"{meta['title']} - {meta['artist']}. Added to favorites"
+                                self.playback_screen.show_notification(stdscr, notif_msg)
                             elif key in ['h', 'H']: # Added h/H for back from playback
                                 logging.debug(f"Detected h/H key in playback")
                                 self.playback_screen = None
