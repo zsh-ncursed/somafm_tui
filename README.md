@@ -23,7 +23,26 @@ A console-based player for SomaFM internet radio with stream buffering support.
 
 ## Installation
 
-### 1. Install System Dependencies
+### For Arch Linux Users
+
+You can install SomaFM TUI directly from the AUR (Arch User Repository):
+
+```bash
+# Using yay
+yay -S somafm_tui
+
+# Using paru
+paru -S somafm_tui
+
+# Manual installation from AUR
+git clone https://aur.archlinux.org/somafm_tui.git
+cd somafm_tui
+makepkg -si
+```
+
+### Manual Installation
+
+#### 1. Install System Dependencies
 
 #### For Arch Linux:
 ```bash
