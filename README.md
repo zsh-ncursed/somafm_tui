@@ -34,7 +34,7 @@ yay -S somafm_tui
 # Using paru
 paru -S somafm_tui
 
-# Manual installation from AUR
+# Manual installation from Github
 git clone https://aur.archlinux.org/somafm_tui.git
 cd somafm_tui
 makepkg -si
