@@ -436,6 +436,16 @@ class SomaFMPlayer:
                 'metadata': curses.COLOR_WHITE,
                 'instructions': curses.COLOR_WHITE,
                 'favorite': curses.COLOR_WHITE
+            },
+            'alternative': {
+                'name': 'Alternative',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_CYAN,
+                'selected': curses.COLOR_GREEN,
+                'info': curses.COLOR_YELLOW,
+                'metadata': curses.COLOR_MAGENTA,
+                'instructions': curses.COLOR_BLUE,
+                'favorite': curses.COLOR_RED
             }
         }
 
@@ -454,7 +464,8 @@ class SomaFMPlayer:
         bg_color = theme['bg_color']
         
         # For dark themes, try to create a darker background if possible
-        if bg_color == curses.COLOR_BLACK and curses.can_change_color():
+        # Exception: alternative theme should keep pure black background
+        if bg_color == curses.COLOR_BLACK and curses.can_change_color() and theme_name != 'alternative':
             curses.init_color(10, 80, 80, 80)  # Very dark gray
             bg_color = 10
         
