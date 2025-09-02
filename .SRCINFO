@@ -1,6 +1,6 @@
 pkgbase = somafm_tui
 	pkgdesc = A console-based player for SomaFM internet radio with stream buffering support
-	pkgver = 0.1.0.r14.gb04d651
+	pkgver = 0.2.2
 	pkgrel = 1
 	url = https://github.com/zsh-ncursed/somafm_tui
 	arch = any
