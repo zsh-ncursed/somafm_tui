@@ -95,6 +95,7 @@ class CombinedScreen:
                 "Space - pause",
                 "h - stop",
                 "f - favorite",
+                "t - theme",
                 "q - quit"
             ]
             
@@ -373,23 +374,103 @@ class SomaFMPlayer:
         except Exception:
             return False
 
+    def _get_color_themes(self):
+        """Define available color themes"""
+        return {
+            'default': {
+                'name': 'Default Dark',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_CYAN,
+                'selected': curses.COLOR_GREEN,
+                'info': curses.COLOR_YELLOW,
+                'metadata': curses.COLOR_MAGENTA,
+                'instructions': curses.COLOR_BLUE,
+                'favorite': curses.COLOR_RED
+            },
+            'light': {
+                'name': 'Light Theme',
+                'bg_color': curses.COLOR_WHITE,
+                'header': curses.COLOR_BLUE,
+                'selected': curses.COLOR_BLACK,
+                'info': curses.COLOR_RED,
+                'metadata': curses.COLOR_MAGENTA,
+                'instructions': curses.COLOR_CYAN,
+                'favorite': curses.COLOR_RED
+            },
+            'matrix': {
+                'name': 'Matrix Green',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_GREEN,
+                'selected': curses.COLOR_WHITE,
+                'info': curses.COLOR_GREEN,
+                'metadata': curses.COLOR_GREEN,
+                'instructions': curses.COLOR_GREEN,
+                'favorite': curses.COLOR_RED
+            },
+            'ocean': {
+                'name': 'Ocean Blue',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_CYAN,
+                'selected': curses.COLOR_WHITE,
+                'info': curses.COLOR_BLUE,
+                'metadata': curses.COLOR_CYAN,
+                'instructions': curses.COLOR_BLUE,
+                'favorite': curses.COLOR_YELLOW
+            },
+            'sunset': {
+                'name': 'Sunset Orange',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_YELLOW,
+                'selected': curses.COLOR_WHITE,
+                'info': curses.COLOR_RED,
+                'metadata': curses.COLOR_YELLOW,
+                'instructions': curses.COLOR_RED,
+                'favorite': curses.COLOR_RED
+            },
+            'monochrome': {
+                'name': 'Monochrome',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_WHITE,
+                'selected': curses.COLOR_BLACK,
+                'info': curses.COLOR_WHITE,
+                'metadata': curses.COLOR_WHITE,
+                'instructions': curses.COLOR_WHITE,
+                'favorite': curses.COLOR_WHITE
+            }
+        }
+
     def _init_colors(self):
-        """Initialize colors"""
+        """Initialize colors based on selected theme"""
         curses.start_color()
-        # Ещё более тёмный фон
-        if curses.can_change_color():
-            # Ещё более тёмный фон
-            curses.init_color(10, 80, 80, 80)  # Очень тёмно-серый, 8% от максимума
+        
+        # Get theme from config
+        theme_name = self.config.get('theme', 'default')
+        themes = self._get_color_themes()
+        
+        if theme_name not in themes:
+            theme_name = 'default'
+        
+        theme = themes[theme_name]
+        bg_color = theme['bg_color']
+        
+        # For dark themes, try to create a darker background if possible
+        if bg_color == curses.COLOR_BLACK and curses.can_change_color():
+            curses.init_color(10, 80, 80, 80)  # Very dark gray
             bg_color = 10
-        else:
-            bg_color = curses.COLOR_BLACK
-        # Main colors
-        curses.init_pair(1, curses.COLOR_CYAN, bg_color)    # Header
-        curses.init_pair(2, curses.COLOR_GREEN, bg_color)   # Selected channel
-        curses.init_pair(3, curses.COLOR_YELLOW, bg_color)  # Channel info
-        curses.init_pair(4, curses.COLOR_MAGENTA, bg_color) # Track metadata
-        curses.init_pair(5, curses.COLOR_BLUE, bg_color)    # Instructions
-        curses.init_pair(6, curses.COLOR_RED, bg_color)     # Favorite icon
+        
+        # Initialize color pairs based on theme
+        curses.init_pair(1, theme['header'], bg_color)      # Header
+        curses.init_pair(2, theme['selected'], bg_color)    # Selected channel
+        curses.init_pair(3, theme['info'], bg_color)        # Channel info
+        curses.init_pair(4, theme['metadata'], bg_color)    # Track metadata
+        curses.init_pair(5, theme['instructions'], bg_color) # Instructions
+        curses.init_pair(6, theme['favorite'], bg_color)    # Favorite icon
+        
+        # For light themes, reverse the selected item colors
+        if theme_name == 'light':
+            curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Selected channel
+        elif theme_name == 'monochrome':
+            curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Selected channel
 
     def _init_config(self):
         """Initialize configuration file if it doesn't exist"""
@@ -397,8 +478,10 @@ class SomaFMPlayer:
             "# Configuration file for SomaFM TUI Player": "",
             "# buffer_minutes: Duration of audio buffering in minutes": "",
             "# buffer_size_mb: Maximum size of buffer in megabytes": "",
+            "# theme: Color theme (default, light, matrix, ocean, sunset, monochrome)": "",
             "buffer_minutes": 5,
-            "buffer_size_mb": 50
+            "buffer_size_mb": 50,
+            "theme": "default"
         }
         
         try:
@@ -417,7 +500,14 @@ class SomaFMPlayer:
                 for line in config_lines:
                     if not line.startswith('#') and ':' in line:
                         key, value = line.split(':', 1)
-                        config_dict[key.strip()] = int(value.strip())
+                        key = key.strip()
+                        value = value.strip()
+                        
+                        # Handle different value types
+                        if key in ['buffer_minutes', 'buffer_size_mb']:
+                            config_dict[key] = int(value)
+                        else:
+                            config_dict[key] = value
                 self.config = config_dict
         except Exception as e:
             logging.error(f"Error initializing config: {e}")
@@ -651,6 +741,12 @@ class SomaFMPlayer:
                                 self.current_index = max(0, self.current_index - 1)
                             elif key == 'j':
                                 self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                            elif key in ['t', 'T']:
+                                self._cycle_theme()
+                                self._init_colors()  # Reinitialize colors with new theme
+                                # Force screen refresh with new colors
+                                stdscr.clear()
+                                stdscr.refresh()
                         else:  # Handle special keys
                             if key == curses.KEY_UP:
                                 self.current_index = max(0, self.current_index - 1)
@@ -700,6 +796,69 @@ class SomaFMPlayer:
             favorites.add(channel_id)
             logging.debug(f"Channel {channel_id} added to favorites.")
         self._save_channel_favorites(favorites)
+
+    def _cycle_theme(self):
+        """Cycle through available themes"""
+        themes = list(self._get_color_themes().keys())
+        current_theme = self.config.get('theme', 'default')
+        
+        try:
+            current_index = themes.index(current_theme)
+            next_index = (current_index + 1) % len(themes)
+        except ValueError:
+            next_index = 0
+        
+        new_theme = themes[next_index]
+        self.config['theme'] = new_theme
+        
+        # Save new theme to config file
+        self._save_config()
+        
+        # Show notification about theme change
+        theme_info = self._get_color_themes()[new_theme]
+        if self.stdscr and self.combined_screen:
+            self.combined_screen.show_notification(
+                self.stdscr, 
+                f"Theme: {theme_info['name']}", 
+                timeout=1.0
+            )
+
+    def _save_config(self):
+        """Save current configuration to file"""
+        try:
+            # Read existing config to preserve comments
+            config_lines = []
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r') as f:
+                    config_lines = f.readlines()
+            
+            # Update or add config values
+            updated_lines = []
+            updated_keys = set()
+            
+            for line in config_lines:
+                if line.startswith('#') or ':' not in line:
+                    updated_lines.append(line)
+                else:
+                    key, _ = line.split(':', 1)
+                    key = key.strip()
+                    if key in self.config:
+                        updated_lines.append(f"{key}: {self.config[key]}\n")
+                        updated_keys.add(key)
+                    else:
+                        updated_lines.append(line)
+            
+            # Add any new config keys
+            for key, value in self.config.items():
+                if key not in updated_keys:
+                    updated_lines.append(f"{key}: {value}\n")
+            
+            # Write updated config
+            with open(CONFIG_FILE, 'w') as f:
+                f.writelines(updated_lines)
+                
+        except Exception as e:
+            logging.error(f"Error saving config: {e}")
 
 if __name__ == "__main__":
     player = SomaFMPlayer()

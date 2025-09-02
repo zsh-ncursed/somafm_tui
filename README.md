@@ -13,13 +13,16 @@ A console-based player for SomaFM internet radio with stream buffering support.
 
 ## Features
 
-- Automatic channel list retrieval from SomaFM
-- Console interface with intuitive navigation
-- Stream buffering for stable playback
-- Track history display
-- Real-time track metadata
-- Automatic configuration management
-- Error logging and recovery
+- **Unified Interface**: Combined channel list and playback in split-screen layout
+- **Multiple Color Themes**: 6 built-in themes optimized for different terminals
+- **Automatic Channel Retrieval**: Fetches latest SomaFM channel list
+- **Intuitive Navigation**: Vim-style keys (hjkl) and arrow key support
+- **Stream Buffering**: Stable playback with configurable buffering
+- **Track History**: Real-time metadata and playback history
+- **Favorites System**: Save favorite tracks and channels
+- **Responsive Design**: Adaptive interface that works on various screen sizes
+- **Configuration Management**: Persistent settings and theme preferences
+- **Error Logging**: Comprehensive logging for troubleshooting
 
 ## Installation
 
@@ -88,21 +91,38 @@ The application uses a configuration file located at `~/.somafm_tui/somafm.cfg` 
 
 - `buffer_minutes`: Duration of audio buffering in minutes
 - `buffer_size_mb`: Maximum size of buffer in megabytes
+- `theme`: Color theme for the interface
 
 Default values:
 ```
 buffer_minutes: 5
 buffer_size_mb: 50
+theme: default
 ```
+
+### Available Themes
+
+The application supports multiple color themes that can be switched using the `t` key:
+
+- **default** - Default Dark theme with cyan/green colors
+- **light** - Light theme with dark text on white background
+- **matrix** - Matrix-style green-on-black theme
+- **ocean** - Ocean blue theme with cyan accents
+- **sunset** - Warm orange/red sunset theme
+- **monochrome** - Simple black and white theme
+
+Themes are designed to work well across different terminal emulators and their color interpretations.
 
 ## Usage
 
 ### Basic Controls
-- ↑/↓: Navigate through channels
-- Enter: Play selected channel
-- Space: Pause/Resume playback
-- f: Add current track to favorites
-- q/ESC: Return to channel list or exit
+- **↑/↓ or j/k**: Navigate through channels
+- **Enter or l**: Play selected channel
+- **Space**: Pause/Resume playback
+- **h**: Stop playback
+- **f**: Add current track to favorites (or toggle channel favorite)
+- **t**: Cycle through color themes
+- **q**: Quit application
 
 ### Files and Directories
 
@@ -147,14 +167,22 @@ buffer_size_mb: 50
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version
-Current version: 0.2.2
+Current version: 0.2.3
 
 ### Changelog
+
+#### Version 0.2.3
+- **Color Themes**: Added 6 built-in color themes (default, light, matrix, ocean, sunset, monochrome)
+- **Theme Switching**: Press 't' key to cycle through available themes
+- **Theme Persistence**: Selected theme is saved in configuration file
+- **Terminal Compatibility**: Themes designed to work well across different terminal emulators
 
 #### Version 0.2.2
 - **New Combined Interface**: Unified channel list and playback into a single screen
 - **Split Layout**: Channels on the left (fixed 30 chars width), playback info on the right
 - **Improved Controls**: Added 'h' key to stop playback while staying in the interface
+- **Color Themes**: 6 built-in themes (default, light, matrix, ocean, sunset, monochrome)
+- **Theme Switching**: Press 't' to cycle through themes during runtime
 - **Adaptive Footer**: Instructions automatically stack when screen width is reduced
 - **Better Responsiveness**: Fixed width left panel, responsive right panel
 - **Visual Improvements**: Eliminated screen gaps and improved fullscreen display
