@@ -147,7 +147,17 @@ buffer_size_mb: 50
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version
-Current version: 0.2.1
+Current version: 0.2.2
+
+### Changelog
+
+#### Version 0.2.2
+- **New Combined Interface**: Unified channel list and playback into a single screen
+- **Split Layout**: Channels on the left (fixed 30 chars width), playback info on the right
+- **Improved Controls**: Added 'h' key to stop playback while staying in the interface
+- **Adaptive Footer**: Instructions automatically stack when screen width is reduced
+- **Better Responsiveness**: Fixed width left panel, responsive right panel
+- **Visual Improvements**: Eliminated screen gaps and improved fullscreen display
 
 ## Favorites Feature
 

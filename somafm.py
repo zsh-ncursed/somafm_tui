@@ -32,96 +32,235 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-class PlaybackScreen:
-    def __init__(self, player, channel, buffer):
-        self.player = player
-        self.channel = channel
-        self.buffer = buffer
+class CombinedScreen:
+    def __init__(self):
         self.current_metadata = {
             'artist': 'Loading...',
             'title': 'Loading...',
             'duration': '--:--',
             'timestamp': None
         }
-        self.next_metadata = {
-            'artist': 'Next track',
-            'title': 'Loading...',
-            'duration': '--:--',
-            'timestamp': None
-        }
-        self.scroll_offset = 0
-        self.max_history = 10  # Maximum number of tracks in history
+        self.max_history = 10
         self.track_history = []
+        self.current_channel = None
+        self.player = None
 
-    def display(self, stdscr):
-        logging.debug("PlaybackScreen.display() called")
+    def display(self, stdscr, channels, selected_index, scroll_offset, channel_favorites, current_channel=None, player=None, is_playing=False):
+        """Display combined interface with channels on left and playback on right"""
         max_y, max_x = stdscr.getmaxyx()
         
-        # Clear screen
-        for y in range(max_y):
-            stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
+        # Fixed width for channels panel (30 characters), rest for playback
+        split_x = 30
         
-        # Display channel name
+        # Clear screen completely and fill background
+        stdscr.clear()
+        stdscr.bkgd(' ', curses.color_pair(1))
+        
+        # Fill entire screen to avoid gaps
+        for y in range(max_y):
+            try:
+                stdscr.addstr(y, 0, " " * max_x, curses.color_pair(1))
+            except curses.error:
+                # Handle the bottom-right corner issue in curses
+                if y == max_y - 1:
+                    try:
+                        stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
+                    except curses.error:
+                        pass
+        
+        # Draw vertical separator
+        for y in range(max_y):
+            try:
+                stdscr.addstr(y, split_x, "│", curses.color_pair(1))
+            except curses.error:
+                pass
+        
+        # Calculate panel height (leave space for 2 lines of instructions)
+        panel_height = max_y - 2
+        
+        # LEFT PANEL: Channel list
+        self._display_channels_panel(stdscr, channels, selected_index, scroll_offset, 
+                                   channel_favorites, 0, 0, split_x, panel_height)
+        
+        # RIGHT PANEL: Playback info
+        self._display_playback_panel(stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height, 
+                                   current_channel, player, is_playing)
+        
+        # Display adaptive instructions at bottom (stack when needed)
         try:
-            channel_title = f"Channel: {self.channel['title']}"
-            logging.debug(f"Displaying channel title: {channel_title}")
-            stdscr.addstr(0, 0, channel_title, curses.color_pair(1) | curses.A_BOLD)
-        except curses.error as e:
-            logging.error(f"Error displaying channel title: {e}")
-            pass
-
-        # Display channel description
-        try:
-            description = self.channel.get('description', 'No description')
-            if len(description) > max_x:
-                description = description[:max_x-3] + "..."
-            stdscr.addstr(1, 0, description, curses.color_pair(3))
+            # List of instruction items
+            instruction_items = [
+                "↑↓/jk - select",
+                "Enter/l - play", 
+                "Space - pause",
+                "h - stop",
+                "f - favorite",
+                "q - quit"
+            ]
+            
+            available_width = max_x - 1
+            available_lines = 2  # Maximum lines we can use for instructions
+            
+            # Try to fit instructions in available space
+            lines = []
+            current_line = ""
+            
+            for item in instruction_items:
+                # Check if we can add this item to current line
+                separator = " | " if current_line else ""
+                test_line = current_line + separator + item
+                
+                if len(test_line) <= available_width:
+                    current_line = test_line
+                else:
+                    # Start new line if we have space
+                    if current_line:
+                        lines.append(current_line)
+                        current_line = item
+                    else:
+                        # Item too long for line, truncate it
+                        current_line = item[:available_width-3] + "..." if available_width > 3 else item[:available_width]
+                    
+                    # If we've used all available lines, break
+                    if len(lines) >= available_lines:
+                        break
+            
+            # Add the last line if it exists
+            if current_line and len(lines) < available_lines:
+                lines.append(current_line)
+            
+            # Display the instruction lines
+            for i, line in enumerate(lines):
+                if i >= available_lines:
+                    break
+                y_pos = max_y - available_lines + i
+                # Pad line to full width
+                padded_line = line.ljust(available_width)
+                stdscr.addstr(y_pos, 0, padded_line, curses.color_pair(5) | curses.A_DIM)
+                
         except curses.error:
             pass
+        
+        stdscr.refresh()
 
-        # Display current track
+    def _display_channels_panel(self, stdscr, channels, selected_index, scroll_offset, 
+                              channel_favorites, start_x, start_y, width, height):
+        """Display channels in left panel"""
+        # Header
         try:
-            # Add playback icon
-            play_symbol = "▶" if not self.player.pause else "⏸"
-            current_track = f"{play_symbol} {self.current_metadata['artist']} - {self.current_metadata['title']}"
-            logging.debug(f"Displaying current track: {current_track}")
-            if len(current_track) > max_x:
-                current_track = current_track[:max_x-3] + "..."
-            stdscr.addstr(2, 0, current_track, curses.color_pair(4) | curses.A_BOLD)
-        except curses.error as e:
-            logging.error(f"Error displaying current track: {e}")
+            header = f"Channels ({len(channels)})"
+            if len(header) > width - 2:
+                header = header[:width-5] + "..."
+            stdscr.addstr(start_y, start_x, header, curses.color_pair(1) | curses.A_BOLD)
+        except curses.error:
             pass
-
-        # Display track history
-        y = 4  # Start from line 4
-        for track in self.track_history:
-            if y >= max_y - 2:
+        
+        # Calculate visible channels (leave space for header and instructions)
+        visible_channels = height - 3
+        
+        # Display channels
+        for i, channel in enumerate(channels[scroll_offset:scroll_offset + visible_channels]):
+            display_y = start_y + 1 + i
+            if display_y >= height - 1:
                 break
+            
+            # Prepare channel title
+            fav_icon = "♥ " if channel['id'] in channel_favorites else "  "
+            title = channel['title']
+            max_title_len = width - 6  # Space for fav icon and selection marker
+            if len(title) > max_title_len:
+                title = title[:max_title_len-3] + "..."
+            display_title = f"{fav_icon}{title}"
+            
             try:
-                # Format timestamp
-                timestamp = track.get('timestamp', '')
-                if timestamp:
-                    timestamp = f"[{timestamp}] "
-                track_info = f"  {timestamp}{track['artist']} - {track['title']}"
-                if len(track_info) > max_x:
-                    track_info = track_info[:max_x-3] + "..."
-                stdscr.addstr(y, 0, track_info, curses.color_pair(4))
-                y += 1
+                if i + scroll_offset == selected_index:
+                    stdscr.addstr(display_y, start_x, f"> {display_title}"[:width-1], 
+                                 curses.color_pair(2) | curses.A_REVERSE)
+                else:
+                    stdscr.addstr(display_y, start_x, f"  {display_title}"[:width-1], 
+                                 curses.color_pair(1))
             except curses.error:
                 continue
 
-        # Display instructions
-        try:
-            stdscr.addstr(max_y - 2, 0, "q - back to channel list  ♥  f - add to favorites", 
-                         curses.color_pair(5) | curses.A_DIM)
-        except curses.error:
-            pass
-
-        stdscr.refresh()
+    def _display_playback_panel(self, stdscr, start_x, start_y, width, height, 
+                              current_channel, player, is_playing):
+        """Display playback info in right panel"""
+        # Get actual screen dimensions to respect boundaries
+        max_y, max_x = stdscr.getmaxyx()
+        
+        # Calculate available width (don't exceed screen boundaries)
+        available_width = min(width, max_x - start_x)
+        
+        if not current_channel or not is_playing:
+            # No playback
+            if available_width > 0:
+                try:
+                    text = "No channel playing"
+                    if len(text) <= available_width:
+                        stdscr.addstr(start_y, start_x, text, curses.color_pair(3))
+                    
+                    text2 = "Select a channel and press Enter to start"
+                    if len(text2) <= available_width and start_y + 2 < max_y:
+                        stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5) | curses.A_DIM)
+                except curses.error:
+                    pass
+            return
+        
+        # Channel info
+        if available_width > 0:
+            try:
+                channel_title = f"♪ {current_channel['title']}"
+                if len(channel_title) > available_width:
+                    channel_title = channel_title[:available_width-3] + "..." if available_width > 3 else channel_title[:available_width]
+                if len(channel_title) <= available_width:
+                    stdscr.addstr(start_y, start_x, channel_title, curses.color_pair(1) | curses.A_BOLD)
+            except curses.error:
+                pass
+        
+        # Channel description
+        if available_width > 0 and start_y + 1 < max_y:
+            try:
+                description = current_channel.get('description', 'No description')
+                if len(description) > available_width:
+                    description = description[:available_width-3] + "..." if available_width > 3 else description[:available_width]
+                if len(description) <= available_width:
+                    stdscr.addstr(start_y + 1, start_x, description, curses.color_pair(3))
+            except curses.error:
+                pass
+        
+        # Current track
+        if available_width > 0 and start_y + 3 < max_y:
+            try:
+                play_symbol = "▶" if not (player and player.pause) else "⏸"
+                current_track = f"{play_symbol} {self.current_metadata['artist']} - {self.current_metadata['title']}"
+                if len(current_track) > available_width:
+                    current_track = current_track[:available_width-3] + "..." if available_width > 3 else current_track[:available_width]
+                if len(current_track) <= available_width:
+                    stdscr.addstr(start_y + 3, start_x, current_track, curses.color_pair(4) | curses.A_BOLD)
+            except curses.error:
+                pass
+        
+        # Track history
+        y = start_y + 5
+        for track in self.track_history:
+            if y >= height - 2 or y >= max_y:
+                break
+            if available_width > 0:
+                try:
+                    timestamp = track.get('timestamp', '')
+                    if timestamp:
+                        timestamp = f"[{timestamp}] "
+                    track_info = f"  {timestamp}{track['artist']} - {track['title']}"
+                    if len(track_info) > available_width:
+                        track_info = track_info[:available_width-3] + "..." if available_width > 3 else track_info[:available_width]
+                    if len(track_info) <= available_width:
+                        stdscr.addstr(y, start_x, track_info, curses.color_pair(4))
+                    y += 1
+                except curses.error:
+                    continue
 
     def add_to_history(self, metadata):
         """Add track to history"""
-        # Add timestamp to metadata
         metadata['timestamp'] = datetime.now().strftime("%H:%M:%S")
         self.track_history.insert(0, metadata)
         if len(self.track_history) > self.max_history:
@@ -129,28 +268,17 @@ class PlaybackScreen:
 
     def update_metadata(self, metadata):
         """Update current track metadata"""
-        logging.debug(f"PlaybackScreen.update_metadata() called with: {metadata}")
+        logging.debug(f"CombinedScreen.update_metadata() called with: {metadata}")
         if metadata != self.current_metadata:
             logging.debug("Metadata changed, updating...")
-            # Move current track to history
             self.add_to_history(self.current_metadata)
-            # Update current track
-            self.current_metadata = metadata.copy()  # Make a copy to avoid reference issues
+            self.current_metadata = metadata.copy()
             logging.debug(f"Updated current_metadata: {self.current_metadata}")
-            # Clear next track
-            self.next_metadata = {
-                'artist': 'Next track',
-                'title': 'Loading...',
-                'duration': '--:--',
-                'timestamp': None
-            }
-            # Force screen refresh
-            curses.doupdate()
         else:
             logging.debug("Metadata unchanged, skipping update")
 
     def show_notification(self, stdscr, message, timeout=1.5):
-        """Показать уведомление поверх экрана на короткое время"""
+        """Show notification overlay"""
         max_y, max_x = stdscr.getmaxyx()
         win_width = min(len(message) + 4, max_x)
         win_height = 3
@@ -201,7 +329,7 @@ class SomaFMPlayer:
             'duration': '--:--'
         }
         self.running = True
-        self.playback_screen = None
+        self.combined_screen = CombinedScreen()
         self.stdscr = None  # Store stdscr for updates
         
         # Set up metadata observer
@@ -227,12 +355,11 @@ class SomaFMPlayer:
                                 }
                                 logging.debug(f"Updated metadata: {metadata}")
                                 self.current_metadata = metadata
-                                if self.playback_screen:
-                                    self.playback_screen.update_metadata(metadata)
+                                if self.combined_screen:
+                                    self.combined_screen.update_metadata(metadata)
                                     # Force screen refresh after metadata update
                                     if self.stdscr:
-                                        self.playback_screen.display(self.stdscr)
-                                        self.stdscr.refresh()
+                                        self._display_combined_interface(self.stdscr)
                                 break
 
     def _check_mpv(self) -> bool:
@@ -324,76 +451,29 @@ class SomaFMPlayer:
             print(f"Error fetching channel list: {e}")
             sys.exit(1)
 
-    def _display_channels(self, stdscr, selected_index: int):
-        """Display channel list in console"""
-        # Get window dimensions
-        max_y, max_x = stdscr.getmaxyx()
-        visible_channels = max_y - 5  # Number of visible channels
-        
-        # Clear screen
-        for y in range(max_y):
-            stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
-        
-        # Display header
-        try:
-            stdscr.addstr(0, 0, f"Available channels ({len(self.channels)}):", 
-                         curses.color_pair(1) | curses.A_BOLD)
-        except curses.error:
-            pass
-        
-        # Load channel favorites
+    def _display_combined_interface(self, stdscr):
+        """Display combined interface with channels and playback"""
         channel_favorites = self._load_channel_favorites()
-
-        # Fixed cursor position at the second line
-        cursor_y = 2
         
-        # Update scroll offset to keep cursor at the top
-        if selected_index < self.scroll_offset:
-            self.scroll_offset = selected_index
-        elif selected_index >= self.scroll_offset + visible_channels:
-            self.scroll_offset = selected_index - visible_channels + 1
+        # Update scroll offset
+        max_y, max_x = stdscr.getmaxyx()
+        visible_channels = max_y - 3
         
-        # Display channels
-        for i, channel in enumerate(self.channels[self.scroll_offset:self.scroll_offset + visible_channels]):
-            # Calculate display position
-            display_y = cursor_y + i
-            if display_y >= max_y - 4:  # Leave space for playback info
-                break
-                
-            # Truncate long channel names
-            title = channel['title'][:max_x-4]  # Leave space for "> " and padding
-            
-            # Add favorite icon if channel is favorited
-            fav_icon = "♥ " if channel['id'] in channel_favorites else "  "
-            display_title = f"{fav_icon}{title}"
-
-            try:
-                if i + self.scroll_offset == selected_index:
-                    stdscr.addstr(display_y, 0, f"> {display_title}", 
-                                 curses.color_pair(2) | curses.A_REVERSE)
-                else:
-                    stdscr.addstr(display_y, 0, f"  {display_title}", curses.color_pair(1))
-            except curses.error:
-                continue
-
-        # Display playback info if available
-        if self.current_channel and self.is_playing:
-            try:
-                info_line = f"Now playing: {self.current_channel['title']}"
-                if len(info_line) > max_x:
-                    info_line = info_line[:max_x-3] + "..."
-                stdscr.addstr(max_y - 2, 0, info_line, curses.color_pair(3))
-            except curses.error:
-                pass
-
-        # Display instructions
-        try:
-            stdscr.addstr(max_y - 1, 0, "↑↓ (j/k) - select channel | Enter (l) - play | q (h) - quit | ♥ f - add channel to favorites", 
-                         curses.color_pair(5) | curses.A_DIM)
-        except curses.error:
-            pass
-
-        stdscr.refresh()
+        if self.current_index < self.scroll_offset:
+            self.scroll_offset = self.current_index
+        elif self.current_index >= self.scroll_offset + visible_channels:
+            self.scroll_offset = self.current_index - visible_channels + 1
+        
+        self.combined_screen.display(
+            stdscr, 
+            self.channels, 
+            self.current_index, 
+            self.scroll_offset,
+            channel_favorites,
+            self.current_channel,
+            self.player,
+            self.is_playing
+        )
 
     def _play_channel(self, channel: Dict):
         """Play selected channel and update last played time"""
@@ -446,8 +526,9 @@ class SomaFMPlayer:
             self.is_playing = True
             self.is_paused = False
             
-            # Create playback screen
-            self.playback_screen = PlaybackScreen(self.player, channel, self.buffer)
+            # Update combined screen with channel info
+            self.combined_screen.current_channel = channel
+            self.combined_screen.player = self.player
             
             # Log channel change
             logging.info(f"Playing channel: {channel['title']}")
@@ -460,8 +541,7 @@ class SomaFMPlayer:
                 'duration': '--:--',
                 'timestamp': datetime.now().strftime("%H:%M:%S")
             }
-            if self.playback_screen:
-                self.playback_screen.update_metadata(initial_metadata)
+            self.combined_screen.update_metadata(initial_metadata)
             
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
@@ -517,75 +597,67 @@ class SomaFMPlayer:
                 
                 # Main loop
                 while self.running:
-                    if self.playback_screen:
-                        self.playback_screen.display(stdscr)
-                    else:
-                        self._display_channels(stdscr, self.current_index)
+                    self._display_combined_interface(stdscr)
                     
                     # Get user input
                     try:
                         key = stdscr.get_wch()
                         logging.debug(f"Pressed key: {key} (type: {type(key)})")
                         
-                        if self.playback_screen:
+                        if isinstance(key, str):
                             if key in ['q', 'й', 'Q', 'Й', chr(27)]:  # 27 is ESC
-                                logging.debug(f"Detected quit key in playback")
-                                self.playback_screen = None
-                                self.player.stop()
-                                self.is_playing = False
-                                self.is_paused = False
-                                self.current_metadata = {
-                                    'artist': 'Loading...',
-                                    'title': 'Loading...',
-                                    'duration': '--:--'
-                                }
+                                logging.debug(f"Detected quit key")
+                                self.running = False
+                            elif key in ['h', 'H']:  # Stop playback
+                                if self.is_playing:
+                                    logging.debug(f"Stopping playback")
+                                    self.player.stop()
+                                    self.is_playing = False
+                                    self.is_paused = False
+                                    self.current_channel = None
+                                    if self.buffer:
+                                        self.buffer.stop_buffering()
+                                        self.buffer.clear()
+                                    # Reset metadata
+                                    self.current_metadata = {
+                                        'artist': 'Loading...',
+                                        'title': 'Loading...',
+                                        'duration': '--:--'
+                                    }
+                                    self.combined_screen.current_metadata = self.current_metadata.copy()
+                            elif key in ['\n', '\r', 'l']:  # Handle Enter as string
+                                self._play_channel(self.channels[self.current_index])
                             elif key == ' ':
-                                self._toggle_playback()
+                                if self.is_playing:
+                                    self._toggle_playback()
                             elif key in ['f', 'F']:
-                                # Добавление в избранное (трек)
-                                fav_dir = os.path.join(HOME, ".somafm_tui")
-                                fav_file = os.path.join(fav_dir, "favorites.list")
-                                os.makedirs(fav_dir, exist_ok=True)
-                                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                meta = self.playback_screen.current_metadata
-                                fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
-                                with open(fav_file, "a") as f:
-                                    f.write(fav_line)
-                                # Показать уведомление с названием и автором
-                                notif_msg = f"{meta['title']} - {meta['artist']}. Added to favorites"
-                                self.playback_screen.show_notification(stdscr, notif_msg)
-                            elif key in ['h', 'H']: # Added h/H for back from playback
-                                logging.debug(f"Detected h/H key in playback")
-                                self.playback_screen = None
-                                self.player.stop()
-                                self.is_playing = False
-                                self.is_paused = False
-                                self.current_metadata = {
-                                    'artist': 'Loading...',
-                                    'title': 'Loading...',
-                                    'duration': '--:--'
-                                }
-                        else:
-                            if isinstance(key, str):
-                                if key in ['q', 'й', 'Q', 'Й', chr(27), 'h']:  # 27 is ESC
-                                    logging.debug(f"Detected quit key in channel list")
-                                    self.running = False
-                                elif key in ['\n', '\r', 'l']:  # Handle Enter as string
-                                    self._play_channel(self.channels[self.current_index])
-                                elif key in ['f', 'F']:
+                                if self.is_playing:
+                                    # Add current track to favorites
+                                    fav_dir = os.path.join(HOME, ".somafm_tui")
+                                    fav_file = os.path.join(fav_dir, "favorites.list")
+                                    os.makedirs(fav_dir, exist_ok=True)
+                                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    meta = self.combined_screen.current_metadata
+                                    fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
+                                    with open(fav_file, "a") as f:
+                                        f.write(fav_line)
+                                    # Show notification
+                                    notif_msg = f"Added to favorites: {meta['title']}"
+                                    self.combined_screen.show_notification(stdscr, notif_msg)
+                                else:
+                                    # Toggle channel favorite
                                     self._toggle_channel_favorite(self.channels[self.current_index]['id'])
-                                    self._display_channels(stdscr, self.current_index)
-                                elif key == 'k':
-                                    self.current_index = max(0, self.current_index - 1)
-                                elif key == 'j':
-                                    self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                            else:  # Handle special keys
-                                if key == curses.KEY_UP:
-                                    self.current_index = max(0, self.current_index - 1)
-                                elif key == curses.KEY_DOWN:
-                                    self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                                elif key == curses.KEY_ENTER:  # Handle Enter as special key
-                                    self._play_channel(self.channels[self.current_index])
+                            elif key == 'k':
+                                self.current_index = max(0, self.current_index - 1)
+                            elif key == 'j':
+                                self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                        else:  # Handle special keys
+                            if key == curses.KEY_UP:
+                                self.current_index = max(0, self.current_index - 1)
+                            elif key == curses.KEY_DOWN:
+                                self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                            elif key == curses.KEY_ENTER:  # Handle Enter as special key
+                                self._play_channel(self.channels[self.current_index])
                     except curses.error:
                         continue
             except Exception as e:
