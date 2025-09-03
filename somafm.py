@@ -96,6 +96,7 @@ class CombinedScreen:
                 "h - stop",
                 "f - favorite",
                 "t - theme",
+                "a - alt bg",
                 "q - quit"
             ]
             
@@ -332,6 +333,7 @@ class SomaFMPlayer:
         self.running = True
         self.combined_screen = CombinedScreen()
         self.stdscr = None  # Store stdscr for updates
+        self.alternative_bg_mode = self.config.get('alternative_bg_mode', False)  # Alternative background mode (pure black instead of dark gray)
         
         # Set up metadata observer
         @self.player.property_observer('metadata')
@@ -436,16 +438,6 @@ class SomaFMPlayer:
                 'metadata': curses.COLOR_WHITE,
                 'instructions': curses.COLOR_WHITE,
                 'favorite': curses.COLOR_WHITE
-            },
-            'alternative': {
-                'name': 'Alternative',
-                'bg_color': curses.COLOR_BLACK,
-                'header': curses.COLOR_CYAN,
-                'selected': curses.COLOR_GREEN,
-                'info': curses.COLOR_YELLOW,
-                'metadata': curses.COLOR_MAGENTA,
-                'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
             }
         }
 
@@ -464,8 +456,8 @@ class SomaFMPlayer:
         bg_color = theme['bg_color']
         
         # For dark themes, try to create a darker background if possible
-        # Exception: alternative theme should keep pure black background
-        if bg_color == curses.COLOR_BLACK and curses.can_change_color() and theme_name != 'alternative':
+        # In alternative background mode, keep pure black background
+        if bg_color == curses.COLOR_BLACK and curses.can_change_color() and not self.alternative_bg_mode:
             curses.init_color(10, 80, 80, 80)  # Very dark gray
             bg_color = 10
         
@@ -490,9 +482,11 @@ class SomaFMPlayer:
             "# buffer_minutes: Duration of audio buffering in minutes": "",
             "# buffer_size_mb: Maximum size of buffer in megabytes": "",
             "# theme: Color theme (default, light, matrix, ocean, sunset, monochrome)": "",
+            "# alternative_bg_mode: Use pure black background instead of dark gray (true/false)": "",
             "buffer_minutes": 5,
             "buffer_size_mb": 50,
-            "theme": "default"
+            "theme": "default",
+            "alternative_bg_mode": False
         }
         
         try:
@@ -517,6 +511,8 @@ class SomaFMPlayer:
                         # Handle different value types
                         if key in ['buffer_minutes', 'buffer_size_mb']:
                             config_dict[key] = int(value)
+                        elif key == 'alternative_bg_mode':
+                            config_dict[key] = value.lower() in ['true', '1', 'yes', 'on']
                         else:
                             config_dict[key] = value
                 self.config = config_dict
@@ -758,6 +754,11 @@ class SomaFMPlayer:
                                 # Force screen refresh with new colors
                                 stdscr.clear()
                                 stdscr.refresh()
+                            elif key in ['a', 'A']:
+                                self._toggle_alternative_bg()
+                                # Force screen refresh with new colors
+                                stdscr.clear()
+                                stdscr.refresh()
                         else:  # Handle special keys
                             if key == curses.KEY_UP:
                                 self.current_index = max(0, self.current_index - 1)
@@ -827,10 +828,33 @@ class SomaFMPlayer:
         
         # Show notification about theme change
         theme_info = self._get_color_themes()[new_theme]
+        bg_mode = " (Alt BG)" if self.alternative_bg_mode else ""
         if self.stdscr and self.combined_screen:
             self.combined_screen.show_notification(
                 self.stdscr, 
-                f"Theme: {theme_info['name']}", 
+                f"Theme: {theme_info['name']}{bg_mode}", 
+                timeout=1.0
+            )
+
+    def _toggle_alternative_bg(self):
+        """Toggle alternative background mode (pure black vs dark gray)"""
+        self.alternative_bg_mode = not self.alternative_bg_mode
+        
+        # Save to config
+        self.config['alternative_bg_mode'] = self.alternative_bg_mode
+        self._save_config()
+        
+        # Reinitialize colors with new background mode
+        self._init_colors()
+        
+        # Show notification about background mode change
+        current_theme = self.config.get('theme', 'default')
+        theme_info = self._get_color_themes()[current_theme]
+        bg_mode = "Alternative BG" if self.alternative_bg_mode else "Normal BG"
+        if self.stdscr and self.combined_screen:
+            self.combined_screen.show_notification(
+                self.stdscr, 
+                f"{theme_info['name']}: {bg_mode}", 
                 timeout=1.0
             )
 
@@ -854,7 +878,11 @@ class SomaFMPlayer:
                     key, _ = line.split(':', 1)
                     key = key.strip()
                     if key in self.config:
-                        updated_lines.append(f"{key}: {self.config[key]}\n")
+                        value = self.config[key]
+                        # Convert boolean to lowercase string for config file
+                        if isinstance(value, bool):
+                            value = str(value).lower()
+                        updated_lines.append(f"{key}: {value}\n")
                         updated_keys.add(key)
                     else:
                         updated_lines.append(line)
@@ -862,6 +890,9 @@ class SomaFMPlayer:
             # Add any new config keys
             for key, value in self.config.items():
                 if key not in updated_keys:
+                    # Convert boolean to lowercase string for config file
+                    if isinstance(value, bool):
+                        value = str(value).lower()
                     updated_lines.append(f"{key}: {value}\n")
             
             # Write updated config

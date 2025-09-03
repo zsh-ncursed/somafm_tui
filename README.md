@@ -13,7 +13,7 @@ A console-based player for SomaFM internet radio with stream buffering support.
 ## Features
 
 - **Unified Interface**: Combined channel list and playback in split-screen layout
-- **Multiple Color Themes**: 7 built-in themes optimized for different terminals
+- **Multiple Color Themes**: 6 built-in themes with alternative background mode
 - **Automatic Channel Retrieval**: Fetches latest SomaFM channel list
 - **Intuitive Navigation**: Vim-style keys (hjkl) and arrow key support
 - **Stream Buffering**: Stable playback with configurable buffering
@@ -91,12 +91,14 @@ The application uses a configuration file located at `~/.somafm_tui/somafm.cfg` 
 - `buffer_minutes`: Duration of audio buffering in minutes
 - `buffer_size_mb`: Maximum size of buffer in megabytes
 - `theme`: Color theme for the interface
+- `alternative_bg_mode`: Use pure black background instead of dark gray (true/false)
 
 Default values:
 ```
 buffer_minutes: 5
 buffer_size_mb: 50
 theme: default
+alternative_bg_mode: false
 ```
 
 ### Available Themes
@@ -109,7 +111,14 @@ The application supports multiple color themes that can be switched using the `t
 - **ocean** - Ocean blue theme with cyan accents
 - **sunset** - Warm orange/red sunset theme
 - **monochrome** - Simple black and white theme
-- **alternative** - Alternative Dark theme (same colors as default but with pure black background)
+
+### Alternative Background Mode
+
+All themes support an alternative background mode that can be toggled with the `a` key:
+- **Normal mode**: Dark themes use dark gray background (color 10)
+- **Alternative mode**: All themes use pure black background (color 0)
+
+This allows you to customize the background intensity of any theme to match your terminal preferences.
 
 Themes are designed to work well across different terminal emulators and their color interpretations.
 
@@ -122,6 +131,7 @@ Themes are designed to work well across different terminal emulators and their c
 - **h**: Stop playback
 - **f**: Add current track to favorites (or toggle channel favorite)
 - **t**: Cycle through color themes
+- **a**: Toggle alternative background mode (pure black vs dark gray)
 - **q**: Quit application
 
 ### Files and Directories
@@ -167,13 +177,19 @@ Themes are designed to work well across different terminal emulators and their c
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version
-Current version: 0.2.3
+Current version: 0.2.4
 
 ### Changelog
 
+#### Version 0.2.4
+- **Alternative Background Mode**: Press 'a' to toggle between normal (dark gray) and alternative (pure black) background
+- **Universal Background Control**: All themes now support both background modes instead of separate alternative theme
+- **Persistent Settings**: Alternative background mode preference is now saved in configuration file
+- **Improved UX**: Better theme switching experience with background mode indicators
+- **Enhanced Notifications**: Theme notifications now show current background mode status
+
 #### Version 0.2.3
-- **Color Themes**: Added 7 built-in color themes (default, light, matrix, ocean, sunset, monochrome, alternative)
-- **Alternative Theme**: New theme identical to Default Dark but with pure black background
+- **Color Themes**: Added 6 built-in color themes (default, light, matrix, ocean, sunset, monochrome)
 - **Theme Switching**: Press 't' key to cycle through available themes
 - **Theme Persistence**: Selected theme is saved in configuration file
 - **Terminal Compatibility**: Themes designed to work well across different terminal emulators
@@ -182,7 +198,7 @@ Current version: 0.2.3
 - **New Combined Interface**: Unified channel list and playback into a single screen
 - **Split Layout**: Channels on the left (fixed 30 chars width), playback info on the right
 - **Improved Controls**: Added 'h' key to stop playback while staying in the interface
-- **Color Themes**: 7 built-in themes (default, light, matrix, ocean, sunset, monochrome, alternative)
+- **Color Themes**: 6 built-in themes (default, light, matrix, ocean, sunset, monochrome)
 - **Theme Switching**: Press 't' to cycle through themes during runtime
 - **Adaptive Footer**: Instructions automatically stack when screen width is reduced
 - **Better Responsiveness**: Fixed width left panel, responsive right panel
