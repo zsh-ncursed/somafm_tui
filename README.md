@@ -180,6 +180,10 @@ Current version: 0.2.4
 
 ### Changelog
 
+#### Version 0.3.0
+- **Resolve problem with playback**: When channel start to play pause = false
+- **Search chanel**: Press '/' to open channel search field
+ 
 #### Version 0.2.4
 - **Alternative Background Mode**: Press 'a' to toggle between normal (dark gray) and alternative (pure black) background
 - **Universal Background Control**: All themes now support both background modes instead of separate alternative theme
