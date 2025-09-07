@@ -125,6 +125,7 @@ Themes are designed to work well across different terminal emulators and their c
 
 ### Basic Controls
 - **↑/↓ or j/k**: Navigate through channels
+- ** / **: Search field channel
 - **Enter or l**: Play selected channel
 - **Space**: Pause/Resume playback
 - **h**: Stop playback
