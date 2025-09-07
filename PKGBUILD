@@ -11,10 +11,10 @@ makedepends=('git')
 source=("git+https://github.com/zsh-ncursed/somafm_tui.git#commit=e81a3349947e630ad598a7b2183037ff372ff5a1")
 sha256sums=('08b2a6734c2937110241bbb6a6cda449fb4402152e25de241112730e89cea5c5')
 
-pkgver() {
-    cd "$pkgname"
-    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//'
-}
+#pkgver() {
+#    cd "$pkgname"
+#    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//'
+#}
 
 prepare() {
     cd "$pkgname"
