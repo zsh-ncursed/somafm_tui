@@ -54,7 +54,7 @@ sudo pacman -S mpv python python-pip
 #### For Ubuntu/Debian:
 ```bash
 sudo apt-get update
-sudo apt-get install mpv python3 python3-pip
+sudo apt-get install mpv libmpv-dev python3 python3-pip
 ```
 
 #### For Fedora:
