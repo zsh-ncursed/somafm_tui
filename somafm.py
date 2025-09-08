@@ -48,14 +48,14 @@ class CombinedScreen:
     def display(self, stdscr, channels, selected_index, scroll_offset, channel_favorites, current_channel=None, player=None, is_playing=False, is_searching=False, search_query=""):
         """Display combined interface with channels on left and playback on right"""
         max_y, max_x = stdscr.getmaxyx()
-        
+
         # Fixed width for channels panel (30 characters), rest for playback
         split_x = 30
-        
+
         # Clear screen completely and fill background
         stdscr.clear()
         stdscr.bkgd(' ', curses.color_pair(1))
-        
+
         # Fill entire screen to avoid gaps
         for y in range(max_y):
             try:
@@ -67,26 +67,26 @@ class CombinedScreen:
                         stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
                     except curses.error:
                         pass
-        
+
         # Draw vertical separator
         for y in range(max_y):
             try:
                 stdscr.addstr(y, split_x, "│", curses.color_pair(1))
             except curses.error:
                 pass
-        
+
         # Calculate panel height (leave space for 2 lines of instructions)
         panel_height = max_y - 2
-        
+
         # LEFT PANEL: Channel list
-        self._display_channels_panel(stdscr, channels, selected_index, scroll_offset, 
+        self._display_channels_panel(stdscr, channels, selected_index, scroll_offset,
                                    channel_favorites, 0, 0, split_x, panel_height,
                                    is_searching, search_query)
-        
+
         # RIGHT PANEL: Playback info
-        self._display_playback_panel(stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height, 
+        self._display_playback_panel(stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
                                    current_channel, player, is_playing)
-        
+
         # Display adaptive instructions at bottom (stack when needed)
         try:
             # List of instruction items
@@ -101,19 +101,19 @@ class CombinedScreen:
                 "a - alt bg",
                 "q - quit"
             ]
-            
+
             available_width = max_x - 1
             available_lines = 2  # Maximum lines we can use for instructions
-            
+
             # Try to fit instructions in available space
             lines = []
             current_line = ""
-            
+
             for item in instruction_items:
                 # Check if we can add this item to current line
                 separator = " | " if current_line else ""
                 test_line = current_line + separator + item
-                
+
                 if len(test_line) <= available_width:
                     current_line = test_line
                 else:
@@ -124,15 +124,15 @@ class CombinedScreen:
                     else:
                         # Item too long for line, truncate it
                         current_line = item[:available_width-3] + "..." if available_width > 3 else item[:available_width]
-                    
+
                     # If we've used all available lines, break
                     if len(lines) >= available_lines:
                         break
-            
+
             # Add the last line if it exists
             if current_line and len(lines) < available_lines:
                 lines.append(current_line)
-            
+
             # Display the instruction lines
             for i, line in enumerate(lines):
                 if i >= available_lines:
@@ -141,10 +141,10 @@ class CombinedScreen:
                 # Pad line to full width
                 padded_line = line.ljust(available_width)
                 stdscr.addstr(y_pos, 0, padded_line, curses.color_pair(5) | curses.A_DIM)
-                
+
         except curses.error:
             pass
-        
+
         stdscr.refresh()
 
     def _display_channels_panel(self, stdscr, channels, selected_index, scroll_offset,
@@ -159,16 +159,16 @@ class CombinedScreen:
             stdscr.addstr(start_y, start_x, header, curses.color_pair(1) | curses.A_BOLD)
         except curses.error:
             pass
-        
+
         # Calculate visible channels (leave space for header and instructions)
         visible_channels = height - 3
-        
+
         # Display channels
         for i, channel in enumerate(channels[scroll_offset:scroll_offset + visible_channels]):
             display_y = start_y + 1 + i
             if display_y >= height - 1:
                 break
-            
+
             # Prepare channel title
             fav_icon = "♥ " if channel['id'] in channel_favorites else "  "
             title = channel['title']
@@ -176,13 +176,13 @@ class CombinedScreen:
             if len(title) > max_title_len:
                 title = title[:max_title_len-3] + "..."
             display_title = f"{fav_icon}{title}"
-            
+
             try:
                 if i + scroll_offset == selected_index:
-                    stdscr.addstr(display_y, start_x, f"> {display_title}"[:width-1], 
+                    stdscr.addstr(display_y, start_x, f"> {display_title}"[:width-1],
                                  curses.color_pair(2) | curses.A_REVERSE)
                 else:
-                    stdscr.addstr(display_y, start_x, f"  {display_title}"[:width-1], 
+                    stdscr.addstr(display_y, start_x, f"  {display_title}"[:width-1],
                                  curses.color_pair(1))
             except curses.error:
                 continue
@@ -203,15 +203,15 @@ class CombinedScreen:
         else:
             curses.curs_set(0)
 
-    def _display_playback_panel(self, stdscr, start_x, start_y, width, height, 
+    def _display_playback_panel(self, stdscr, start_x, start_y, width, height,
                               current_channel, player, is_playing):
         """Display playback info in right panel"""
         # Get actual screen dimensions to respect boundaries
         max_y, max_x = stdscr.getmaxyx()
-        
+
         # Calculate available width (don't exceed screen boundaries)
         available_width = min(width, max_x - start_x)
-        
+
         if not current_channel or not is_playing:
             # No playback
             if available_width > 0:
@@ -219,14 +219,14 @@ class CombinedScreen:
                     text = "No channel playing"
                     if len(text) <= available_width:
                         stdscr.addstr(start_y, start_x, text, curses.color_pair(3))
-                    
+
                     text2 = "Select a channel and press Enter to start"
                     if len(text2) <= available_width and start_y + 2 < max_y:
                         stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5) | curses.A_DIM)
                 except curses.error:
                     pass
             return
-        
+
         # Channel info
         if available_width > 0:
             try:
@@ -237,7 +237,7 @@ class CombinedScreen:
                     stdscr.addstr(start_y, start_x, channel_title, curses.color_pair(1) | curses.A_BOLD)
             except curses.error:
                 pass
-        
+
         # Channel description
         if available_width > 0 and start_y + 1 < max_y:
             try:
@@ -248,7 +248,7 @@ class CombinedScreen:
                     stdscr.addstr(start_y + 1, start_x, description, curses.color_pair(3))
             except curses.error:
                 pass
-        
+
         # Current track
         if available_width > 0 and start_y + 3 < max_y:
             try:
@@ -260,7 +260,7 @@ class CombinedScreen:
                     stdscr.addstr(start_y + 3, start_x, current_track, curses.color_pair(4) | curses.A_BOLD)
             except curses.error:
                 pass
-        
+
         # Track history
         y = start_y + 5
         for track in self.track_history:
@@ -331,14 +331,14 @@ class SomaFMPlayer:
 
         self._init_config()
         self.channels = self._fetch_channels()
-        
+
         self.buffer = None
         self.player = mpv.MPV(
             input_default_bindings=True,
             input_vo_keyboard=True,
             osc=True
         )
-        
+
         self.current_channel = None
         self.current_index = 0
         self.is_playing = False
@@ -353,7 +353,7 @@ class SomaFMPlayer:
         self.combined_screen = CombinedScreen()
         self.stdscr = None  # Store stdscr for updates
         self.alternative_bg_mode = self.config.get('alternative_bg_mode', False)  # Alternative background mode (pure black instead of dark gray)
-        
+
         # Search state
         self.is_searching = False
         self.search_query = ""
@@ -366,7 +366,7 @@ class SomaFMPlayer:
                 logging.debug(f"Received metadata: {value}")
                 # Try to get track info from metadata
                 track_info = value.get('icy-title', '')
-                
+
                 if track_info:
                     # Try to split by different separators
                     for separator in [' - ', ' – ']:
@@ -393,8 +393,8 @@ class SomaFMPlayer:
         """Check if MPV is installed and accessible"""
         try:
             import subprocess
-            result = subprocess.run(['mpv', '--version'], 
-                                 stdout=subprocess.PIPE, 
+            result = subprocess.run(['mpv', '--version'],
+                                 stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
             return result.returncode == 0
         except Exception:
@@ -531,23 +531,23 @@ class SomaFMPlayer:
     def _init_colors(self):
         """Initialize colors based on selected theme"""
         curses.start_color()
-        
+
         # Get theme from config
         theme_name = self.config.get('theme', 'default')
         themes = self._get_color_themes()
-        
+
         if theme_name not in themes:
             theme_name = 'default'
-        
+
         theme = themes[theme_name]
         bg_color = theme['bg_color']
-        
+
         # For dark themes, try to create a darker background if possible
         # In alternative background mode, keep pure black background
         if bg_color == curses.COLOR_BLACK and curses.can_change_color() and not self.alternative_bg_mode:
             curses.init_color(10, 80, 80, 80)  # Very dark gray
             bg_color = 10
-        
+
         # Initialize color pairs based on theme
         curses.init_pair(1, theme['header'], bg_color)      # Header
         curses.init_pair(2, theme['selected'], bg_color)    # Selected channel
@@ -555,7 +555,7 @@ class SomaFMPlayer:
         curses.init_pair(4, theme['metadata'], bg_color)    # Track metadata
         curses.init_pair(5, theme['instructions'], bg_color) # Instructions
         curses.init_pair(6, theme['favorite'], bg_color)    # Favorite icon
-        
+
         # For light themes, reverse the selected item colors
         if theme_name in ['light', 'solarized-light', 'paper', 'light-plus', 'github-light']:
             curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Selected channel
@@ -577,7 +577,7 @@ class SomaFMPlayer:
             "theme": "default",
             "alternative_bg_mode": False
         }
-        
+
         try:
             if not os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'w') as f:
@@ -586,7 +586,7 @@ class SomaFMPlayer:
                             f.write(f"{key}\n")
                         else:
                             f.write(f"{key}: {value}\n")
-                    
+
             # Read actual config values (skip comments)
             with open(CONFIG_FILE) as f:
                 config_lines = f.readlines()
@@ -596,7 +596,7 @@ class SomaFMPlayer:
                         key, value = line.split(':', 1)
                         key = key.strip()
                         value = value.strip()
-                        
+
                         # Handle different value types
                         if key in ['buffer_minutes', 'buffer_size_mb']:
                             config_dict[key] = int(value)
@@ -653,23 +653,23 @@ class SomaFMPlayer:
             channels_to_display = self.filtered_channels
         else:
             channels_to_display = self.channels
-        
+
         # Update scroll offset
         max_y, max_x = stdscr.getmaxyx()
         panel_height = max_y - 2
         visible_channels = panel_height - 3
-        
+
         # Ensure we don't scroll beyond the available channels
         max_scroll = max(0, len(channels_to_display) - visible_channels)
-        
+
         if self.current_index < self.scroll_offset:
             self.scroll_offset = self.current_index
         elif self.current_index >= self.scroll_offset + visible_channels:
             self.scroll_offset = min(max_scroll, self.current_index - visible_channels + 1)
-        
+
         # Ensure scroll_offset is within bounds
         self.scroll_offset = max(0, min(max_scroll, self.scroll_offset))
-        
+
         # Final check: ensure current selection is visible
         if self.current_index >= len(channels_to_display):
             self.current_index = max(0, len(channels_to_display) - 1)
@@ -678,14 +678,14 @@ class SomaFMPlayer:
             self.scroll_offset = self.current_index
         elif self.current_index >= self.scroll_offset + visible_channels:
             self.scroll_offset = max(0, min(max_scroll, self.current_index - visible_channels + 1))
-        
+
         # Debug logging
         logging.debug(f"Navigation: current_index={self.current_index}, scroll_offset={self.scroll_offset}, visible_channels={visible_channels}, max_scroll={max_scroll}, total_channels={len(channels_to_display)}")
-        
+
         self.combined_screen.display(
-            stdscr, 
+            stdscr,
             channels_to_display,
-            self.current_index, 
+            self.current_index,
             self.scroll_offset,
             channel_favorites,
             self.current_channel,
@@ -711,24 +711,24 @@ class SomaFMPlayer:
             usage = {k: v for k, v in usage.items() if k in valid_ids}
             with open(CHANNEL_USAGE_FILE, 'w') as f:
                 json.dump(usage, f)
-            
+
             # Get stream URL from playlists
             stream_url = None
             for playlist in channel.get('playlists', []):
                 if playlist.get('format') == 'mp3':
                     stream_url = playlist.get('url')
                     break
-            
+
             if not stream_url:
                 raise Exception(f"No MP3 stream found for channel {channel['title']}")
-            
+
             # Stop current playback and buffering if any
             if self.player:
                 self.player.stop()
             if self.buffer:
                 self.buffer.stop_buffering()
                 self.buffer.clear()
-            
+
             # Initialize new buffer
             self.buffer = StreamBuffer(
                 url=stream_url,
@@ -736,25 +736,25 @@ class SomaFMPlayer:
                 buffer_size_mb=self.config['buffer_size_mb'],
                 cache_dir=CACHE_DIR
             )
-            
+
             # Start buffering
             self.buffer.start_buffering()
-            
+
             # Start playback
             self.player.pause = False
             self.player.play(stream_url)
             self.current_channel = channel
             self.is_playing = True
             self.is_paused = False
-            
+
             # Update combined screen with channel info
             self.combined_screen.current_channel = channel
             self.combined_screen.player = self.player
-            
+
             # Log channel change
             logging.info(f"Playing channel: {channel['title']}")
             logging.debug(f"Stream URL: {stream_url}")
-            
+
             # Set initial metadata
             initial_metadata = {
                 'artist': 'Loading...',
@@ -763,7 +763,7 @@ class SomaFMPlayer:
                 'timestamp': datetime.now().strftime("%H:%M:%S")
             }
             self.combined_screen.update_metadata(initial_metadata)
-            
+
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
             print(f"Error playing channel: {e}")
@@ -805,21 +805,21 @@ class SomaFMPlayer:
             try:
                 # Store stdscr globally for updates
                 self.stdscr = stdscr
-                
+
                 # Initialize colors
                 self._init_colors()
-                
+
                 # Enable keypad mode for special keys
                 stdscr.keypad(True)
                 # Enable Unicode support
                 curses.raw()
                 # Enable non-blocking mode
                 stdscr.nodelay(False)
-                
+
                 # Main loop
                 while self.running:
                     self._display_combined_interface(stdscr)
-                    
+
                     # Get user input
                     try:
                         key = stdscr.get_wch()
@@ -956,48 +956,48 @@ class SomaFMPlayer:
         """Cycle through available themes"""
         themes = list(self._get_color_themes().keys())
         current_theme = self.config.get('theme', 'default')
-        
+
         try:
             current_index = themes.index(current_theme)
             next_index = (current_index + 1) % len(themes)
         except ValueError:
             next_index = 0
-        
+
         new_theme = themes[next_index]
         self.config['theme'] = new_theme
-        
+
         # Save new theme to config file
         self._save_config()
-        
+
         # Show notification about theme change
         theme_info = self._get_color_themes()[new_theme]
         bg_mode = " (Alt BG)" if self.alternative_bg_mode else ""
         if self.stdscr and self.combined_screen:
             self.combined_screen.show_notification(
-                self.stdscr, 
-                f"Theme: {theme_info['name']}{bg_mode}", 
+                self.stdscr,
+                f"Theme: {theme_info['name']}{bg_mode}",
                 timeout=1.0
             )
 
     def _toggle_alternative_bg(self):
         """Toggle alternative background mode (pure black vs dark gray)"""
         self.alternative_bg_mode = not self.alternative_bg_mode
-        
+
         # Save to config
         self.config['alternative_bg_mode'] = self.alternative_bg_mode
         self._save_config()
-        
+
         # Reinitialize colors with new background mode
         self._init_colors()
-        
+
         # Show notification about background mode change
         current_theme = self.config.get('theme', 'default')
         theme_info = self._get_color_themes()[current_theme]
         bg_mode = "Alternative BG" if self.alternative_bg_mode else "Normal BG"
         if self.stdscr and self.combined_screen:
             self.combined_screen.show_notification(
-                self.stdscr, 
-                f"{theme_info['name']}: {bg_mode}", 
+                self.stdscr,
+                f"{theme_info['name']}: {bg_mode}",
                 timeout=1.0
             )
 
@@ -1009,11 +1009,11 @@ class SomaFMPlayer:
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r') as f:
                     config_lines = f.readlines()
-            
+
             # Update or add config values
             updated_lines = []
             updated_keys = set()
-            
+
             for line in config_lines:
                 if line.startswith('#') or ':' not in line:
                     updated_lines.append(line)
@@ -1029,7 +1029,7 @@ class SomaFMPlayer:
                         updated_keys.add(key)
                     else:
                         updated_lines.append(line)
-            
+
             # Add any new config keys
             for key, value in self.config.items():
                 if key not in updated_keys:
@@ -1037,14 +1037,14 @@ class SomaFMPlayer:
                     if isinstance(value, bool):
                         value = str(value).lower()
                     updated_lines.append(f"{key}: {value}\n")
-            
+
             # Write updated config
             with open(CONFIG_FILE, 'w') as f:
                 f.writelines(updated_lines)
-                
+
         except Exception as e:
             logging.error(f"Error saving config: {e}")
 
 if __name__ == "__main__":
     player = SomaFMPlayer()
-    player.run() 
+    player.run()
