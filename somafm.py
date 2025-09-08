@@ -7,6 +7,7 @@ import json
 import sys
 import time
 import logging
+import threading
 from typing import List, Dict, Set
 from datetime import datetime
 from stream_buffer import StreamBuffer
@@ -338,6 +339,7 @@ class SomaFMPlayer:
             input_vo_keyboard=True,
             osc=True
         )
+        self._init_mpris()
 
         self.current_channel = None
         self.current_index = 0
@@ -387,6 +389,10 @@ class SomaFMPlayer:
                                     # Force screen refresh after metadata update
                                     if self.stdscr:
                                         self._display_combined_interface(self.stdscr)
+
+                                # Update MPRIS service with new metadata
+                                if self.mpris_service and self.config.get('dbus_send_metadata', False):
+                                    self.mpris_service.update_metadata(metadata)
                                 break
 
     def _check_mpv(self) -> bool:
@@ -572,10 +578,18 @@ class SomaFMPlayer:
             "# buffer_size_mb: Maximum size of buffer in megabytes": "",
             f"# theme: Color theme ({theme_names})": "",
             "# alternative_bg_mode: Use pure black background instead of dark gray (true/false)": "",
+            "# dbus_allowed: Enable MPRIS/D-Bus support for media keys (true/false)": "",
+            "# dbus_send_metadata: Send channel metadata over D-Bus (true/false)": "",
+            "# dbus_send_metadata_artworks: Send channel picture with metadata over D-Bus (true/false)": "",
+            "# dbus_cache_metadata_artworks: Cache channel picture locally for D-Bus (true/false)": "",
             "buffer_minutes": 5,
             "buffer_size_mb": 50,
             "theme": "default",
-            "alternative_bg_mode": False
+            "alternative_bg_mode": False,
+            "dbus_allowed": False,
+            "dbus_send_metadata": False,
+            "dbus_send_metadata_artworks": False,
+            "dbus_cache_metadata_artworks": True,
         }
 
         try:
@@ -600,7 +614,7 @@ class SomaFMPlayer:
                         # Handle different value types
                         if key in ['buffer_minutes', 'buffer_size_mb']:
                             config_dict[key] = int(value)
-                        elif key == 'alternative_bg_mode':
+                        elif key in ['alternative_bg_mode', 'dbus_allowed', 'dbus_send_metadata', 'dbus_send_metadata_artworks', 'dbus_cache_metadata_artworks']:
                             config_dict[key] = value.lower() in ['true', '1', 'yes', 'on']
                         else:
                             config_dict[key] = value
@@ -609,6 +623,27 @@ class SomaFMPlayer:
             logging.error(f"Error initializing config: {e}")
             # Use only actual config values, not comments
             self.config = {k: v for k, v in default_config.items() if not k.startswith('#')}
+
+    def _init_mpris(self):
+        """Initialize MPRIS service if enabled in config"""
+        self.mpris_service = None
+        self.mpris_loop = None
+        self.mpris_thread = None
+        dbus_allowed = self.config.get('dbus_allowed', False)
+
+        if not dbus_allowed:
+            logging.info("MPRIS service disabled by configuration")
+            return
+
+        try:
+            from mpris_service import MPRISService, run_mpris_loop
+
+            self.mpris_service = MPRISService(self, cache_dir=CACHE_DIR)
+            self.mpris_thread = threading.Thread(target=run_mpris_loop, args=(self.mpris_service,), daemon=True)
+            self.mpris_thread.start()
+            logging.info("MPRIS service thread started")
+        except Exception as e:
+            logging.error(f"Failed to start MPRIS service: {e}")
 
     def _fetch_channels(self) -> List[Dict]:
         """Fetch channel list from SomaFM and sort by last played"""
@@ -764,12 +799,21 @@ class SomaFMPlayer:
             }
             self.combined_screen.update_metadata(initial_metadata)
 
+            # Update MPRIS service
+            if self.mpris_service:
+                self.mpris_service.update_playback_status("Playing")
+                if self.config.get('dbus_send_metadata', False):
+                    self.mpris_service.update_metadata(initial_metadata)
+
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
             print(f"Error playing channel: {e}")
             self.is_playing = False
             self.is_paused = False
             self.current_channel = None
+            # Update MPRIS service on error
+            if self.mpris_service:
+                self.mpris_service.update_playback_status("Stopped")
 
     def _toggle_playback(self):
         """Toggle playback pause/resume"""
@@ -777,9 +821,14 @@ class SomaFMPlayer:
             if self.is_paused:
                 self.player.pause = False
                 self.is_paused = False
+                if self.mpris_service:
+                    self.mpris_service.update_playback_status("Playing")
             else:
                 self.player.pause = True
                 self.is_paused = True
+                # Update MPRIS service
+                if self.mpris_service:
+                    self.mpris_service.update_playback_status("Paused")
 
     def _cleanup(self):
         """Clean up resources"""
