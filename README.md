@@ -54,7 +54,7 @@ sudo pacman -S mpv python python-pip
 #### For Ubuntu/Debian:
 ```bash
 sudo apt-get update
-sudo apt-get install mpv python3 python3-pip
+sudo apt-get install mpv libmpv-dev python3 python3-pip
 ```
 
 #### For Fedora:
@@ -92,6 +92,10 @@ The application uses a configuration file located at `~/.somafm_tui/somafm.cfg` 
 - `buffer_size_mb`: Maximum size of buffer in megabytes
 - `theme`: Color theme for the interface
 - `alternative_bg_mode`: Use pure black background instead of dark gray (true/false)
+- `dbus_allowed`: Allow D-Bus communication (true/false)
+- `dbus_send_metadata`: Send metadata over D-Bus (true/false)
+- `dbus_send_metadata_artworks`: Send metadata artworks over D-Bus (true/false)
+- `dbus_cache_metadata_artworks`: Cache metadata artworks locally (true/false)
 
 Default values:
 ```
@@ -99,6 +103,10 @@ buffer_minutes: 5
 buffer_size_mb: 50
 theme: default
 alternative_bg_mode: false
+dbus_allowed: false
+dbus_send_metadata: false
+dbus_send_metadata_artworks: false
+dbus_cache_metadata_artworks: true
 ```
 
 ### Available Themes
@@ -140,6 +148,7 @@ Themes are designed to work well across different terminal emulators and their c
 - Favorites: `~/.somafm_tui/favorites.list`
 - Temporary files: `/tmp/.somafmtmp/`
 - Logs: `/tmp/.somafmtmp/somafm.log`
+- Cached images: `/tmp/.somafmtmp/cache/artworks`
 
 ### Error Handling
 
@@ -184,7 +193,7 @@ Current version: 0.2.4
 #### Version 0.3.0
 - **Resolve problem with playback**: When channel start to play pause = false
 - **Search chanel**: Press '/' to open channel search field
- 
+
 #### Version 0.2.4
 - **Alternative Background Mode**: Press 'a' to toggle between normal (dark gray) and alternative (pure black) background
 - **Universal Background Control**: All themes now support both background modes instead of separate alternative theme
@@ -212,4 +221,4 @@ Current version: 0.2.4
 
 On the playback screen, press `f` to add the current track to favorites. The first entry creates the file `~/.somafm_tui/favorites.list`. Format: Artist - Title (date-time).
 
---- 
+---
