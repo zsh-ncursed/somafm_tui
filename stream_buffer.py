@@ -58,4 +58,4 @@ class StreamBuffer:
     def clear(self):
         """Clear buffer"""
         if os.path.exists(self.buffer_file):
-            os.remove(self.buffer_file) 
+            os.remove(self.buffer_file)
