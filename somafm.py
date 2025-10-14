@@ -408,128 +408,222 @@ class SomaFMPlayer:
 
     def _get_color_themes(self):
         """Define available color themes"""
-        # 5 light themes, 15 dark themes
+        # 5 light themes, 16 dark themes (including default)
         return {
             # Light Themes
-            'light': {
-                'name': 'Light',
-                'bg_color': curses.COLOR_WHITE, 'header': curses.COLOR_BLUE, 'selected': curses.COLOR_BLACK,
-                'info': curses.COLOR_BLACK, 'metadata': curses.COLOR_MAGENTA, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
-            },
-            'solarized-light': {
-                'name': 'Solarized Light',
-                'bg_color': curses.COLOR_WHITE, 'header': curses.COLOR_BLUE, 'selected': curses.COLOR_BLACK,
-                'info': curses.COLOR_BLACK, 'metadata': curses.COLOR_GREEN, 'instructions': curses.COLOR_CYAN,
-                'favorite': curses.COLOR_RED
-            },
-            'paper': {
-                'name': 'Paper',
-                'bg_color': curses.COLOR_WHITE, 'header': curses.COLOR_BLACK, 'selected': curses.COLOR_BLUE,
-                'info': curses.COLOR_BLACK, 'metadata': curses.COLOR_BLUE, 'instructions': curses.COLOR_BLACK,
-                'favorite': curses.COLOR_RED
-            },
-            'light-plus': {
-                'name': 'Light Plus',
-                'bg_color': curses.COLOR_WHITE, 'header': curses.COLOR_MAGENTA, 'selected': curses.COLOR_BLACK,
-                'info': curses.COLOR_BLACK, 'metadata': curses.COLOR_BLUE, 'instructions': curses.COLOR_BLACK,
-                'favorite': curses.COLOR_RED
+            'one-light': {
+                'name': 'One Light',
+                'bg_color': 10,  # Custom color: #fafafa (250, 250, 250) -> (1000, 1000, 1000)
+                'header': 11,    # Custom color: #e45649 (228, 86, 73) -> (912, 344, 292)
+                'selected': 12,  # Custom color: #383a42 (56, 58, 66) -> (224, 232, 264)
+                'info': 13,      # Custom color: #50a14f (80, 161, 79) -> (320, 644, 316)
+                'metadata': 14,  # Custom color: #4078f2 (64, 120, 242) -> (256, 480, 968)
+                'instructions': 15, # Custom color: #0184bc (1, 132, 188) -> (4, 528, 752)
+                'favorite': 16   # Custom color: #c18401 (193, 132, 1) -> (772, 528, 4)
             },
             'github-light': {
                 'name': 'GitHub Light',
-                'bg_color': curses.COLOR_WHITE, 'header': curses.COLOR_BLUE, 'selected': curses.COLOR_BLACK,
-                'info': curses.COLOR_BLACK, 'metadata': curses.COLOR_GREEN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
+                'bg_color': curses.COLOR_WHITE,
+                'header': 17,    # Custom color: #0969da (9, 105, 218) -> (36, 420, 872)
+                'selected': 18,  # Custom color: #24292f (36, 41, 47) -> (144, 164, 188)
+                'info': 19,      # Custom color: #28a745 (40, 167, 69) -> (160, 668, 276)
+                'metadata': 20,  # Custom color: #d29922 (210, 153, 34) -> (840, 612, 136)
+                'instructions': 21, # Custom color: #cb2431 (203, 36, 49) -> (812, 144, 196)
+                'favorite': 21   # Same as instructions
             },
+            'solarized-light': {
+                'name': 'Solarized Light',
+                'bg_color': 22,  # Custom color: #fdf6e3 (253, 246, 227) -> (1000, 984, 908)
+                'header': 23,    # Custom color: #b58900 (181, 137, 0) -> (724, 548, 0)
+                'selected': 24,  # Custom color: #586e75 (88, 110, 117) -> (352, 440, 468)
+                'info': 25,      # Custom color: #93a1a1 (147, 161, 161) -> (588, 644, 644)
+                'metadata': 26,  # Custom color: #268bd2 (38, 139, 210) -> (152, 556, 840)
+                'instructions': 27, # Custom color: #859900 (133, 153, 0) -> (532, 612, 0)
+                'favorite': 28   # Custom color: #dc322f (220, 50, 47) -> (880, 200, 188)
+            },
+
+            'ayu-light': {
+                'name': 'Ayu Light',
+                'bg_color': 41,  # Custom color: #fafafa (250, 250, 250) -> (1000, 1000, 1000)
+                'header': 42,    # Custom color: #e6b450 (230, 180, 80) -> (920, 720, 320)
+                'selected': 43,  # Custom color: #575f66 (87, 95, 102) -> (348, 380, 408)
+                'info': 44,      # Custom color: #8a9199 (138, 145, 153) -> (552, 580, 612)
+                'metadata': 45,  # Custom color: #409c50 (64, 156, 80) -> (256, 624, 320)
+                'instructions': 46, # Custom color: #686868 (104, 104, 104) -> (416, 416, 416)
+                'favorite': 47   # Custom color: #ff9940 (255, 153, 64) -> (1000, 612, 256)
+            },
+            'material-light': {
+                'name': 'Material Light',
+                'bg_color': 48,  # Custom color: #fafafa (250, 250, 250) -> (1000, 1000, 1000)
+                'header': 49,    # Custom color: #42a5f5 (66, 165, 245) -> (264, 660, 980)
+                'selected': 50,  # Custom color: #263238 (38, 50, 56) -> (152, 200, 224)
+                'info': 51,      # Custom color: #43a047 (67, 160, 71) -> (268, 640, 284)
+                'metadata': 52,  # Custom color: #f57c00 (245, 124, 0) -> (980, 496, 0)
+                'instructions': 53, # Custom color: #546e7a (84, 110, 122) -> (336, 440, 488)
+                'favorite': 54   # Custom color: #e53935 (229, 57, 53) -> (916, 228, 212)
+            },
+
+
             # Dark Themes
-            'default': {
-                'name': 'Default Dark',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_CYAN, 'selected': curses.COLOR_GREEN,
-                'info': curses.COLOR_YELLOW, 'metadata': curses.COLOR_MAGENTA, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
+            'one-dark': {
+                'name': 'One Dark',
+                'bg_color': 76,  # Custom color: #282c34 (40, 44, 52) -> (160, 176, 208)
+                'header': 77,    # Custom color: #e06c75 (224, 108, 117) -> (896, 432, 468)
+                'selected': 78,  # Custom color: #abb2bf (171, 178, 191) -> (684, 712, 764)
+                'info': 79,      # Custom color: #98c379 (152, 195, 121) -> (608, 780, 484)
+                'metadata': 80,  # Custom color: #56b6c2 (86, 182, 194) -> (344, 728, 776)
+                'instructions': 81, # Custom color: #61afef (97, 175, 239) -> (388, 700, 956)
+                'favorite': 82   # Custom color: #e5c07b (229, 192, 123) -> (916, 768, 492)
             },
-            'darcula': {
-                'name': 'Darcula',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_CYAN, 'selected': curses.COLOR_YELLOW,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_GREEN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
+            'dracula': {
+                'name': 'Dracula',
+                'bg_color': 83,  # Custom color: #282a36 (40, 42, 54) -> (160, 168, 216)
+                'header': 84,    # Custom color: #f8f8f2 (248, 248, 242) -> (992, 992, 968)
+                'selected': 85,  # Custom color: #ff79c6 (255, 121, 198) -> (1000, 484, 792)
+                'info': 86,      # Custom color: #50fa7b (80, 250, 123) -> (320, 1000, 492)
+                'metadata': 87,  # Custom color: #8be9fd (139, 233, 253) -> (556, 932, 1000)
+                'instructions': 88, # Custom color: #bd93f9 (189, 147, 249) -> (756, 588, 996)
+                'favorite': 89   # Custom color: #ffb86c (255, 184, 108) -> (1000, 736, 432)
+            },
+            'tokyo-night': {
+                'name': 'Tokyo Night',
+                'bg_color': 90,  # Custom color: #1e1a38 (30, 26, 56) -> (120, 104, 224)
+                'header': 91,    # Custom color: #c0caf5 (192, 202, 245) -> (768, 808, 980)
+                'selected': 92,  # Custom color: #f03d55 (240, 61, 85) -> (960, 244, 340)
+                'info': 93,      # Custom color: #00d4ff (0, 212, 255) -> (0, 848, 1000)
+                'metadata': 94,  # Custom color: #8a7b9d (138, 123, 157) -> (552, 492, 628)
+                'instructions': 95, # Custom color: #a9b1d6 (169, 177, 214) -> (676, 708, 856)
+                'favorite': 96   # Custom color: #7aa2f7 (122, 162, 247) -> (488, 648, 988)
             },
             'monokai': {
                 'name': 'Monokai',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_YELLOW, 'selected': curses.COLOR_GREEN,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_CYAN, 'instructions': curses.COLOR_MAGENTA,
-                'favorite': curses.COLOR_RED
+                'bg_color': 97,  # Custom color: #2e2e2e (46, 46, 46) -> (184, 184, 184)
+                'header': 98,    # Custom color: #f8f8f2 (248, 248, 242) -> (992, 992, 968)
+                'selected': 99,  # Custom color: #e5b567 (229, 181, 103) -> (916, 724, 412)
+                'info': 100,     # Custom color: #b4d273 (180, 210, 115) -> (720, 840, 460)
+                'metadata': 101, # Custom color: #e87d3e (232, 125, 62) -> (928, 500, 248)
+                'instructions': 102, # Custom color: #9e86c8 (158, 134, 200) -> (632, 536, 800)
+                'favorite': 103  # Custom color: #b05279 (176, 82, 121) -> (704, 328, 484)
             },
-            'matrix': {
-                'name': 'Matrix',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_GREEN, 'selected': curses.COLOR_WHITE,
-                'info': curses.COLOR_GREEN, 'metadata': curses.COLOR_GREEN, 'instructions': curses.COLOR_GREEN,
-                'favorite': curses.COLOR_RED
+            'gruvbox': {
+                'name': 'Gruvbox',
+                'bg_color': 104, # Custom color: #282828 (40, 40, 40) -> (160, 160, 160)
+                'header': 105,   # Custom color: #ebdbb2 (235, 219, 178) -> (940, 876, 712)
+                'selected': 106, # Custom color: #fb4934 (251, 73, 52) -> (1000, 292, 208)
+                'info': 107,     # Custom color: #b8bb26 (184, 187, 38) -> (736, 748, 152)
+                'metadata': 108, # Custom color: #fabd2f (250, 189, 47) -> (1000, 756, 188)
+                'instructions': 109, # Custom color: #83a598 (131, 165, 152) -> (524, 660, 608)
+                'favorite': 110  # Custom color: #d3869b (211, 134, 155) -> (844, 536, 620)
             },
-            'ocean': {
-                'name': 'Ocean',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_CYAN, 'selected': curses.COLOR_WHITE,
-                'info': curses.COLOR_BLUE, 'metadata': curses.COLOR_CYAN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_YELLOW
+            'ayu-dark': {
+                'name': 'Ayu Dark',
+                'bg_color': 111, # Custom color: #0f1419 (15, 20, 25) -> (60, 80, 100)
+                'header': 112,   # Custom color: #c7cdd9 (199, 205, 217) -> (796, 820, 868)
+                'selected': 113, # Custom color: #ff3333 (255, 51, 51) -> (1000, 204, 204)
+                'info': 114,     # Custom color: #bae67e (186, 230, 126) -> (744, 920, 504)
+                'metadata': 115, # Custom color: #73d0ff (115, 208, 255) -> (460, 832, 1000)
+                'instructions': 116, # Custom color: #c792ea (199, 146, 234) -> (796, 584, 936)
+                'favorite': 117  # Custom color: #ffcc66 (255, 204, 102) -> (1000, 816, 408)
             },
-            'sunset': {
-                'name': 'Sunset',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_YELLOW, 'selected': curses.COLOR_WHITE,
-                'info': curses.COLOR_RED, 'metadata': curses.COLOR_YELLOW, 'instructions': curses.COLOR_RED,
-                'favorite': curses.COLOR_RED
+            'solarized-dark': {
+                'name': 'Solarized Dark',
+                'bg_color': 118, # Custom color: #002b36 (0, 43, 54) -> (0, 172, 216)
+                'header': 119,   # Custom color: #839496 (131, 148, 150) -> (524, 592, 600)
+                'selected': 120, # Custom color: #b58900 (181, 137, 0) -> (724, 548, 0)
+                'info': 121,     # Custom color: #2aa198 (42, 161, 152) -> (168, 644, 608)
+                'metadata': 122, # Custom color: #268bd2 (38, 139, 210) -> (152, 556, 840)
+                'instructions': 123, # Custom color: #6c71c4 (108, 113, 196) -> (432, 452, 784)
+                'favorite': 124  # Custom color: #d33682 (211, 54, 130) -> (844, 216, 520)
             },
-            'monochrome': {
-                'name': 'Monochrome',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_WHITE, 'selected': curses.COLOR_BLACK,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_WHITE, 'instructions': curses.COLOR_WHITE,
+            'github-dark': {
+                'name': 'GitHub Dark',
+                'bg_color': 125, # Custom color: #0d1117 (13, 17, 23) -> (52, 68, 92)
+                'header': 126,   # Custom color: #c9d1d9 (201, 209, 217) -> (804, 836, 868)
+                'selected': 127, # Custom color: #539bf5 (83, 155, 245) -> (332, 620, 980)
+                'info': 128,     # Custom color: #56d364 (86, 211, 100) -> (344, 844, 400)
+                'metadata': 129, # Custom color: #d29922 (210, 153, 34) -> (840, 612, 136)
+                'instructions': 130, # Custom color: #f0f6fc (240, 246, 252) -> (960, 984, 1000)
+                'favorite': 131  # Custom color: #f85149 (248, 81, 73) -> (992, 324, 292)
+            },
+            'monochrome-dark': {
+                'name': 'Monochrome Dark',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_WHITE,
+                'selected': curses.COLOR_WHITE,  # Changed from curses.COLOR_BLACK to curses.COLOR_WHITE
+                'info': curses.COLOR_WHITE,
+                'metadata': curses.COLOR_WHITE,
+                'instructions': curses.COLOR_WHITE,
                 'favorite': curses.COLOR_WHITE
             },
             'nord': {
                 'name': 'Nord',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_BLUE, 'selected': curses.COLOR_WHITE,
-                'info': curses.COLOR_CYAN, 'metadata': curses.COLOR_MAGENTA, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_YELLOW
-            },
-            'gruvbox': {
-                'name': 'Gruvbox',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_YELLOW, 'selected': curses.COLOR_GREEN,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_RED, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_YELLOW
-            },
-            'dracula': {
-                'name': 'Dracula',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_MAGENTA, 'selected': curses.COLOR_CYAN,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_GREEN, 'instructions': curses.COLOR_YELLOW,
-                'favorite': curses.COLOR_RED
-            },
-            'cobalt': {
-                'name': 'Cobalt',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_BLUE, 'selected': curses.COLOR_YELLOW,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_CYAN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
-            },
-            'onedark': {
-                'name': 'One Dark',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_CYAN, 'selected': curses.COLOR_RED,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_GREEN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_YELLOW
+                'bg_color': 133,  # Custom color: #2e3440 (46, 52, 64) -> (184, 208, 256)
+                'header': 134,    # Custom color: #88c0d0 (136, 192, 208) -> (544, 768, 832)
+                'selected': 135,  # Custom color: #d8dee9 (216, 222, 233) -> (864, 888, 932)
+                'info': 136,      # Custom color: #8fbcbb (143, 188, 187) -> (572, 752, 748)
+                'metadata': 137,  # Custom color: #5e81ac (94, 129, 172) -> (376, 516, 688)
+                'instructions': 138, # Custom color: #6c71c4 (108, 113, 196) -> (432, 452, 784)
+                'favorite': 139  # Custom color: #d08770 (208, 135, 112) -> (832, 540, 448)
             },
             'night-owl': {
                 'name': 'Night Owl',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_MAGENTA, 'selected': curses.COLOR_YELLOW,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_CYAN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
+                'bg_color': 140,  # Custom color: #011627 (1, 22, 39) -> (4, 88, 156)
+                'header': 141,    # Custom color: #c792ea (199, 146, 234) -> (796, 584, 936)
+                'selected': 142,  # Custom color: #ffffff (255, 255, 255) -> (1000, 1000, 1000)
+                'info': 143,      # Custom color: #82aaff (130, 170, 255) -> (520, 680, 1000)
+                'metadata': 144,  # Custom color: #addb67 (173, 219, 103) -> (692, 876, 412)
+                'instructions': 145, # Custom color: #637777 (99, 119, 119) -> (396, 476, 476)
+                'favorite': 146  # Custom color: #ff5874 (255, 88, 116) -> (1000, 352, 464)
             },
-            'ayu': {
-                'name': 'Ayu',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_YELLOW, 'selected': curses.COLOR_GREEN,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_CYAN, 'instructions': curses.COLOR_BLUE,
-                'favorite': curses.COLOR_RED
+            'catppuccin': {
+                'name': 'Catppuccin',
+                'bg_color': 147,  # Custom color: #1e1d2b (30, 29, 43) -> (120, 116, 172)
+                'header': 148,    # Custom color: #b4befe (180, 190, 254) -> (720, 760, 1000)
+                'selected': 149,  # Custom color: #f5e0dc (245, 224, 220) -> (980, 896, 880)
+                'info': 150,      # Custom color: #a6e3a1 (166, 227, 161) -> (664, 908, 644)
+                'metadata': 151,  # Custom color: #74c7ec (116, 199, 236) -> (464, 796, 944)
+                'instructions': 152, # Custom color: #9399b2 (147, 153, 178) -> (588, 612, 712)
+                'favorite': 153  # Custom color: #f38ba8 (243, 139, 168) -> (972, 556, 672)
             },
-            'tokyo-night': {
-                'name': 'Tokyo Night',
-                'bg_color': curses.COLOR_BLACK, 'header': curses.COLOR_BLUE, 'selected': curses.COLOR_CYAN,
-                'info': curses.COLOR_WHITE, 'metadata': curses.COLOR_MAGENTA, 'instructions': curses.COLOR_BLUE,
+            'cobalt': {
+                'name': 'Cobalt',
+                'bg_color': 154,  # Custom color: #002240 (0, 34, 64) -> (0, 136, 256)
+                'header': 155,    # Custom color: #ffffff (255, 255, 255) -> (1000, 1000, 1000)
+                'selected': 156,  # Custom color: #e6f0ff (230, 240, 255) -> (920, 960, 1000)
+                'info': 157,      # Custom color: #a9cfff (169, 207, 255) -> (676, 828, 1000)
+                'metadata': 158,  # Custom color: #90c0f0 (144, 192, 240) -> (576, 768, 960)
+                'instructions': 159, # Custom color: #80a0d0 (128, 160, 208) -> (512, 640, 832)
+                'favorite': 160  # Custom color: #ff6480 (255, 100, 128) -> (1000, 400, 512)
+            },
+            'zenburn': {
+                'name': 'Zenburn',
+                'bg_color': 161,  # Custom color: #3f3f3f (63, 63, 63) -> (252, 252, 252)
+                'header': 162,    # Custom color: #dcdccc (220, 220, 204) -> (880, 880, 816)
+                'selected': 163,  # Custom color: #f0dfaf (240, 223, 175) -> (960, 892, 700)
+                'info': 164,      # Custom color: #ccffaf (204, 255, 175) -> (816, 1000, 700)
+                'metadata': 165,  # Custom color: #7f9f7f (127, 159, 127) -> (508, 636, 508)
+                'instructions': 166, # Custom color: #d0d0a0 (208, 208, 160) -> (832, 832, 640)
+                'favorite': 167  # Custom color: #dca3a3 (220, 163, 163) -> (880, 652, 652)
+            },
+            'ayu-mirage': {
+                'name': 'Ayu Mirage',
+                'bg_color': 168,  # Custom color: #202734 (32, 39, 52) -> (128, 156, 208)
+                'header': 169,    # Custom color: #f28779 (242, 135, 121) -> (968, 540, 484)
+                'selected': 170,  # Custom color: #ffcc66 (255, 204, 102) -> (1000, 816, 408)
+                'info': 171,      # Custom color: #bae67e (186, 230, 126) -> (744, 920, 504)
+                'metadata': 172,  # Custom color: #73d0ff (115, 208, 255) -> (460, 832, 1000)
+                'instructions': 173, # Custom color: #c792ea (199, 146, 234) -> (796, 584, 936)
+                'favorite': 174  # Custom color: #ffd700 (255, 215, 0) -> (1000, 860, 0)
+            },
+
+            'default': {
+                'name': 'Default Dark',
+                'bg_color': curses.COLOR_BLACK,
+                'header': curses.COLOR_CYAN,
+                'selected': curses.COLOR_GREEN,
+                'info': curses.COLOR_YELLOW,
+                'metadata': curses.COLOR_MAGENTA,
+                'instructions': curses.COLOR_BLUE,
                 'favorite': curses.COLOR_RED
             }
         }
@@ -537,6 +631,176 @@ class SomaFMPlayer:
     def _init_colors(self):
         """Initialize colors based on selected theme"""
         curses.start_color()
+
+        # Initialize custom colors based on themes
+        # Light themes
+        curses.init_color(10, 1000, 1000, 1000)  # #fafafa (One Light bg)
+        curses.init_color(11, 912, 344, 292)     # #e45649 (One Light header)
+        curses.init_color(12, 224, 232, 264)     # #383a42 (One Light selected)
+        curses.init_color(13, 320, 644, 316)     # #50a14f (One Light info)
+        curses.init_color(14, 256, 480, 968)     # #4078f2 (One Light metadata)
+        curses.init_color(15, 4, 528, 752)       # #0184bc (One Light instructions)
+        curses.init_color(16, 772, 528, 4)       # #c18401 (One Light favorite)
+        curses.init_color(17, 36, 420, 872)      # #0969da (GitHub Light header)
+        curses.init_color(18, 144, 164, 188)     # #24292f (GitHub Light selected)
+        curses.init_color(19, 160, 668, 276)     # #28a745 (GitHub Light info)
+        curses.init_color(20, 840, 612, 136)     # #d29922 (GitHub Light metadata)
+        curses.init_color(21, 812, 144, 196)     # #cb2431 (GitHub Light instructions/favorite)
+        curses.init_color(22, 1000, 984, 908)    # #fdf6e3 (Solarized Light bg)
+        curses.init_color(23, 724, 548, 0)       # #b58900 (Solarized Light header)
+        curses.init_color(24, 352, 440, 468)     # #586e75 (Solarized Light selected)
+        curses.init_color(25, 588, 644, 644)     # #93a1a1 (Solarized Light info)
+        curses.init_color(26, 152, 556, 840)     # #268bd2 (Solarized Light metadata)
+        curses.init_color(27, 532, 612, 0)       # #859900 (Solarized Light instructions)
+        curses.init_color(28, 880, 200, 188)     # #dc322f (Solarized Light favorite)
+        curses.init_color(29, 836, 616, 408)     # #d19a66 (Light Plus header)
+        curses.init_color(30, 224, 232, 264)     # #383a42 (Light Plus selected)
+        curses.init_color(31, 896, 432, 468)     # #e06c75 (Light Plus info)
+        curses.init_color(32, 388, 700, 956)     # #61afef (Light Plus metadata)
+        curses.init_color(33, 684, 712, 764)     # #abb2bf (Light Plus instructions)
+        curses.init_color(34, 792, 480, 884)     # #c678dd (Light Plus favorite)
+        curses.init_color(35, 144, 164, 184)     # #24292e (Paper header)
+        curses.init_color(36, 12, 408, 856)      # #0366d6 (Paper selected)
+        curses.init_color(37, 160, 668, 276)     # #28a745 (Paper info)
+        curses.init_color(38, 0, 368, 788)       # #005cc5 (Paper metadata)
+        curses.init_color(39, 352, 384, 420)     # #586069 (Paper instructions)
+        curses.init_color(40, 908, 392, 36)      # #e36209 (Paper favorite)
+        curses.init_color(41, 1000, 1000, 1000)  # #fafafa (Ayu Light bg)
+        curses.init_color(42, 920, 720, 320)     # #e6b450 (Ayu Light header)
+        curses.init_color(43, 348, 380, 408)     # #575f66 (Ayu Light selected)
+        curses.init_color(44, 552, 580, 612)     # #8a9199 (Ayu Light info)
+        curses.init_color(45, 256, 624, 320)     # #409c50 (Ayu Light metadata)
+        curses.init_color(46, 416, 416, 416)     # #686868 (Ayu Light instructions)
+        curses.init_color(47, 1000, 612, 256)    # #ff9940 (Ayu Light favorite)
+        curses.init_color(48, 1000, 1000, 1000)  # #fafafa (Material Light bg)
+        curses.init_color(49, 264, 660, 980)     # #42a5f5 (Material Light header)
+        curses.init_color(50, 152, 200, 224)     # #263238 (Material Light selected)
+        curses.init_color(51, 268, 640, 284)     # #43a047 (Material Light info)
+        curses.init_color(52, 980, 496, 0)       # #f57c00 (Material Light metadata)
+        curses.init_color(53, 336, 440, 488)     # #546e7a (Material Light instructions)
+        curses.init_color(54, 916, 228, 212)     # #e53935 (Material Light favorite)
+
+        curses.init_color(55, 1000, 1000, 1000)  # #ffffff (IntelliJ Light bg)
+        curses.init_color(56, 836, 616, 408)     # #d19a66 (IntelliJ Light header)
+        curses.init_color(57, 240, 252, 260)     # #3c3f41 (IntelliJ Light selected)
+        curses.init_color(58, 608, 780, 484)     # #98c379 (IntelliJ Light info)
+        curses.init_color(59, 388, 700, 956)     # #61afef (IntelliJ Light metadata)
+        curses.init_color(60, 684, 712, 764)     # #abb2bf (IntelliJ Light instructions)
+        curses.init_color(61, 896, 432, 468)     # #e06c75 (IntelliJ Light favorite)
+        curses.init_color(62, 1000, 1000, 1000)  # #ffffff (Xcode Light bg)
+        curses.init_color(63, 860, 744, 500)     # #d7ba7d (Xcode Light header)
+        curses.init_color(64, 216, 216, 216)     # #363636 (Xcode Light selected)
+        curses.init_color(65, 312, 804, 704)     # #4ec9b0 (Xcode Light info)
+        curses.init_color(66, 624, 880, 1000)    # #9cdcfe (Xcode Light metadata)
+        curses.init_color(67, 848, 848, 848)     # #d4d4d4 (Xcode Light instructions)
+        curses.init_color(68, 976, 284, 284)     # #f44747 (Xcode Light favorite)
+        curses.init_color(69, 1000, 1000, 1000)  # #ffffff (VSCode Light bg)
+        curses.init_color(70, 0, 488, 816)       # #007acc (VSCode Light header)
+        curses.init_color(71, 240, 240, 240)     # #3c3c3c (VSCode Light selected)
+        curses.init_color(72, 468, 760, 1000)    # #75beff (VSCode Light info)
+        curses.init_color(73, 412, 600, 920)     # #6796e6 (VSCode Light metadata)
+        curses.init_color(74, 556, 592, 632)     # #8b949e (VSCode Light instructions)
+        curses.init_color(75, 916, 80, 0)        # #e51400 (VSCode Light favorite)
+
+        # Dark themes
+        curses.init_color(76, 160, 176, 208)     # #282c34 (One Dark bg)
+        curses.init_color(77, 896, 432, 468)     # #e06c75 (One Dark header)
+        curses.init_color(78, 684, 712, 764)     # #abb2bf (One Dark selected)
+        curses.init_color(79, 608, 780, 484)     # #98c379 (One Dark info)
+        curses.init_color(80, 344, 728, 776)     # #56b6c2 (One Dark metadata)
+        curses.init_color(81, 388, 700, 956)     # #61afef (One Dark instructions)
+        curses.init_color(82, 916, 768, 492)     # #e5c07b (One Dark favorite)
+        curses.init_color(83, 160, 168, 216)     # #282a36 (Dracula bg)
+        curses.init_color(84, 992, 992, 968)     # #f8f8f2 (Dracula header)
+        curses.init_color(85, 1000, 484, 792)    # #ff79c6 (Dracula selected)
+        curses.init_color(86, 320, 1000, 492)    # #50fa7b (Dracula info)
+        curses.init_color(87, 556, 932, 1000)    # #8be9fd (Dracula metadata)
+        curses.init_color(88, 756, 588, 996)     # #bd93f9 (Dracula instructions)
+        curses.init_color(89, 1000, 736, 432)    # #ffb86c (Dracula favorite)
+        curses.init_color(90, 120, 104, 224)     # #1e1a38 (Tokyo Night bg)
+        curses.init_color(91, 768, 808, 980)     # #c0caf5 (Tokyo Night header)
+        curses.init_color(92, 960, 244, 340)     # #f03d55 (Tokyo Night selected)
+        curses.init_color(93, 0, 848, 1000)      # #00d4ff (Tokyo Night info)
+        curses.init_color(94, 552, 492, 628)     # #8a7b9d (Tokyo Night metadata)
+        curses.init_color(95, 676, 708, 856)     # #a9b1d6 (Tokyo Night instructions)
+        curses.init_color(96, 488, 648, 988)     # #7aa2f7 (Tokyo Night favorite)
+        curses.init_color(97, 184, 184, 184)     # #2e2e2e (Monokai bg)
+        curses.init_color(98, 992, 992, 968)     # #f8f8f2 (Monokai header)
+        curses.init_color(99, 916, 724, 412)     # #e5b567 (Monokai selected)
+        curses.init_color(100, 720, 840, 460)    # #b4d273 (Monokai info)
+        curses.init_color(101, 928, 500, 248)    # #e87d3e (Monokai metadata)
+        curses.init_color(102, 632, 536, 800)    # #9e86c8 (Monokai instructions)
+        curses.init_color(103, 704, 328, 484)    # #b05279 (Monokai favorite)
+        curses.init_color(104, 160, 160, 160)    # #282828 (Gruvbox bg)
+        curses.init_color(105, 940, 876, 712)    # #ebdbb2 (Gruvbox header)
+        curses.init_color(106, 1000, 292, 208)   # #fb4934 (Gruvbox selected)
+        curses.init_color(107, 736, 748, 152)    # #b8bb26 (Gruvbox info)
+        curses.init_color(108, 1000, 756, 188)   # #fabd2f (Gruvbox metadata)
+        curses.init_color(109, 524, 660, 608)    # #83a598 (Gruvbox instructions)
+        curses.init_color(110, 844, 536, 620)    # #d3869b (Gruvbox favorite)
+        curses.init_color(111, 60, 80, 100)      # #0f1419 (Ayu Dark bg)
+        curses.init_color(112, 796, 820, 868)    # #c7cdd9 (Ayu Dark header)
+        curses.init_color(113, 1000, 204, 204)   # #ff3333 (Ayu Dark selected)
+        curses.init_color(114, 744, 920, 504)    # #bae67e (Ayu Dark info)
+        curses.init_color(115, 460, 832, 1000)   # #73d0ff (Ayu Dark metadata)
+        curses.init_color(116, 796, 584, 936)    # #c792ea (Ayu Dark instructions)
+        curses.init_color(117, 1000, 816, 408)   # #ffcc66 (Ayu Dark favorite)
+        curses.init_color(118, 0, 172, 216)      # #002b36 (Solarized Dark bg)
+        curses.init_color(119, 524, 592, 600)    # #839496 (Solarized Dark header)
+        curses.init_color(120, 724, 548, 0)      # #b58900 (Solarized Dark selected)
+        curses.init_color(121, 168, 644, 608)    # #2aa198 (Solarized Dark info)
+        curses.init_color(122, 152, 556, 840)    # #268bd2 (Solarized Dark metadata)
+        curses.init_color(123, 432, 452, 784)    # #6c71c4 (Solarized Dark instructions)
+        curses.init_color(124, 844, 216, 520)    # #d33682 (Solarized Dark favorite)
+        curses.init_color(125, 52, 68, 92)       # #0d1117 (GitHub Dark bg)
+        curses.init_color(126, 804, 836, 868)    # #c9d1d9 (GitHub Dark header)
+        curses.init_color(127, 332, 620, 980)    # #539bf5 (GitHub Dark selected)
+        curses.init_color(128, 344, 844, 400)    # #56d364 (GitHub Dark info)
+        curses.init_color(129, 840, 612, 136)    # #d29922 (GitHub Dark metadata)
+        curses.init_color(130, 960, 984, 1000)   # #f0f6fc (GitHub Dark instructions)
+        curses.init_color(131, 992, 324, 292)    # #f85149 (GitHub Dark favorite)
+        curses.init_color(133, 184, 208, 256)    # #2e3440 (Nord bg)
+        curses.init_color(134, 544, 768, 832)    # #88c0d0 (Nord header)
+        curses.init_color(135, 864, 888, 932)    # #d8dee9 (Nord selected)
+        curses.init_color(136, 572, 752, 748)    # #8fbcbb (Nord info)
+        curses.init_color(137, 376, 516, 688)    # #5e81ac (Nord metadata)
+        curses.init_color(138, 432, 452, 784)    # #6c71c4 (Nord instructions)
+        curses.init_color(139, 832, 540, 448)    # #d08770 (Nord favorite)
+        curses.init_color(140, 4, 88, 156)       # #011627 (Night Owl bg)
+        curses.init_color(141, 796, 584, 936)    # #c792ea (Night Owl header)
+        curses.init_color(142, 1000, 1000, 1000) # #ffffff (Night Owl selected)
+        curses.init_color(143, 520, 680, 1000)   # #82aaff (Night Owl info)
+        curses.init_color(144, 692, 876, 412)    # #addb67 (Night Owl metadata)
+        curses.init_color(145, 396, 476, 476)    # #637777 (Night Owl instructions)
+        curses.init_color(146, 1000, 352, 464)   # #ff5874 (Night Owl favorite)
+        curses.init_color(147, 120, 116, 172)    # #1e1d2b (Catppuccin bg)
+        curses.init_color(148, 720, 760, 1000)   # #b4befe (Catppuccin header)
+        curses.init_color(149, 980, 896, 880)    # #f5e0dc (Catppuccin selected)
+        curses.init_color(150, 664, 908, 644)    # #a6e3a1 (Catppuccin info)
+        curses.init_color(151, 464, 796, 944)    # #74c7ec (Catppuccin metadata)
+        curses.init_color(152, 588, 612, 712)    # #9399b2 (Catppuccin instructions)
+        curses.init_color(153, 972, 556, 672)    # #f38ba8 (Catppuccin favorite)
+        curses.init_color(154, 0, 136, 256)      # #002240 (Cobalt bg)
+        curses.init_color(155, 1000, 1000, 1000) # #ffffff (Cobalt header)
+        curses.init_color(156, 920, 960, 1000)   # #e6f0ff (Cobalt selected)
+        curses.init_color(157, 676, 828, 1000)   # #a9cfff (Cobalt info)
+        curses.init_color(158, 576, 768, 960)    # #90c0f0 (Cobalt metadata)
+        curses.init_color(159, 512, 640, 832)    # #80a0d0 (Cobalt instructions)
+        curses.init_color(160, 1000, 400, 512)   # #ff6480 (Cobalt favorite)
+        curses.init_color(161, 252, 252, 252)    # #3f3f3f (Zenburn bg)
+        curses.init_color(162, 880, 880, 816)    # #dcdccc (Zenburn header)
+        curses.init_color(163, 960, 892, 700)    # #f0dfaf (Zenburn selected)
+        curses.init_color(164, 816, 1000, 700)   # #ccffaf (Zenburn info)
+        curses.init_color(165, 508, 636, 508)    # #7f9f7f (Zenburn metadata)
+        curses.init_color(166, 832, 832, 640)    # #d0d0a0 (Zenburn instructions)
+        curses.init_color(167, 880, 652, 652)    # #dca3a3 (Zenburn favorite)
+        curses.init_color(168, 128, 156, 208)    # #202734 (Ayu Mirage bg)
+        curses.init_color(169, 968, 540, 484)    # #f28779 (Ayu Mirage header)
+        curses.init_color(170, 1000, 816, 408)   # #ffcc66 (Ayu Mirage selected)
+        curses.init_color(171, 744, 920, 504)    # #bae67e (Ayu Mirage info)
+        curses.init_color(172, 460, 832, 1000)   # #73d0ff (Ayu Mirage metadata)
+        curses.init_color(173, 796, 584, 936)    # #c792ea (Ayu Mirage instructions)
+        curses.init_color(174, 1000, 860, 0)     # #ffd700 (Ayu Mirage favorite)
 
         # Get theme from config
         theme_name = self.config.get('theme', 'default')
@@ -548,11 +812,11 @@ class SomaFMPlayer:
         theme = themes[theme_name]
         bg_color = theme['bg_color']
 
-        # For dark themes, try to create a darker background if possible
+        # For dark themes with black background, try to create a darker background if possible
         # In alternative background mode, keep pure black background
         if bg_color == curses.COLOR_BLACK and curses.can_change_color() and not self.alternative_bg_mode:
-            curses.init_color(10, 80, 80, 80)  # Very dark gray
-            bg_color = 10
+            curses.init_color(132, 80, 80, 80)  # Very dark gray
+            bg_color = 132
 
         # Initialize color pairs based on theme
         curses.init_pair(1, theme['header'], bg_color)      # Header
@@ -562,10 +826,8 @@ class SomaFMPlayer:
         curses.init_pair(5, theme['instructions'], bg_color) # Instructions
         curses.init_pair(6, theme['favorite'], bg_color)    # Favorite icon
 
-        # For light themes, reverse the selected item colors
-        if theme_name in ['light', 'solarized-light', 'paper', 'light-plus', 'github-light']:
-            curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Selected channel
-        elif theme_name == 'monochrome':
+        # Special handling for monochrome themes to ensure selected text is visible
+        if theme_name == 'monochrome' or theme_name == 'monochrome-dark':
             curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Selected channel
 
     def _init_config(self):
@@ -650,21 +912,21 @@ class SomaFMPlayer:
         try:
             response = requests.get('https://api.somafm.com/channels.json')
             channels = response.json()['channels']
-            # Загрузка usage
+            # Load usage
             if os.path.exists(CHANNEL_USAGE_FILE):
                 with open(CHANNEL_USAGE_FILE, 'r') as f:
                     usage = json.load(f)
             else:
                 usage = {}
-            # Очищаем usage от несуществующих каналов
+            # Clean up usage from non-existent channels
             valid_ids = {c['id'] for c in channels}
             usage = {k: v for k, v in usage.items() if k in valid_ids}
-            # Сортировка каналов
+            # Sort channels
             def sort_key(ch):
                 last = usage.get(ch['id'])
                 return -(last if last else 0)
             channels.sort(key=sort_key, reverse=False)
-            # Сохраняем очищенный usage
+            # Save cleaned usage
             with open(CHANNEL_USAGE_FILE, 'w') as f:
                 json.dump(usage, f)
             return channels
@@ -908,7 +1170,7 @@ class SomaFMPlayer:
                                     self.is_searching = True
                                     self.search_query = ""
                                     self.current_index = 0
-                                elif key in ['q', 'й', 'Q', 'Й', chr(27)]:
+                                elif key in ['q', 'Q', chr(27)]:
                                     self.running = False
                                 elif key in ['h', 'H']:  # Stop playback
                                     if self.is_playing:

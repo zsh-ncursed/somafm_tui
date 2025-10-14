@@ -13,7 +13,7 @@ A console-based player for SomaFM internet radio with stream buffering support.
 ## Features
 
 - **Unified Interface**: Combined channel list and playback in split-screen layout
-- **Multiple Color Themes**: 20 built-in themes (5 light, 15 dark) with alternative background mode
+- **Multiple Color Themes**: 21 built-in themes (5 light, 16 dark) with alternative background mode
 - **Automatic Channel Retrieval**: Fetches latest SomaFM channel list
 - **Intuitive Navigation**: Vim-style keys (hjkl) and arrow key support
 - **Stream Buffering**: Stable playback with configurable buffering
@@ -111,13 +111,13 @@ dbus_cache_metadata_artworks: true
 
 ### Available Themes
 
-The application supports 20 color themes that can be switched using the `t` key:
+The application supports 21 color themes that can be switched using the `t` key:
 
 **Light Themes (5):**
-- `light`, `solarized-light`, `paper`, `light-plus`, `github-light`
+- `one-light`, `github-light`, `solarized-light`, `ayu-light`, `material-light`
 
-**Dark Themes (15):**
-- `default`, `darcula`, `monokai`, `matrix`, `ocean`, `sunset`, `monochrome`, `nord`, `gruvbox`, `dracula`, `cobalt`, `onedark`, `night-owl`, `ayu`, `tokyo-night`
+**Dark Themes (16):**
+- `one-dark`, `dracula`, `tokyo-night`, `monokai`, `gruvbox`, `ayu-dark`, `solarized-dark`, `github-dark`, `monochrome-dark`, `nord`, `night-owl`, `catppuccin`, `cobalt`, `zenburn`, `ayu-mirage`, `default`
 
 ### Alternative Background Mode
 
@@ -186,9 +186,16 @@ Themes are designed to work well across different terminal emulators and their c
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version
-Current version: 0.2.4
+Current version: 0.3.1
 
 ### Changelog
+
+#### Version 0.3.1
+- **Updated Color Themes**: Expanded from 20 to 21 built-in color schemes (5 light, 16 dark)
+- **New Light Themes**: Added material-light theme
+- **New Dark Themes**: Added nord, night-owl, catppuccin, cobalt, zenburn, ayu-mirage themes
+- **Theme Restructuring**: Refined theme selection to meet specific requirements (5 light + 16 dark themes)
+- **Documentation Update**: Updated README with accurate theme list and counts
 
 #### Version 0.3.0
 - **Resolve problem with playback**: When channel start to play pause = false
