@@ -41,3 +41,7 @@ Thumbs.db
 
 # Project specific
 somafm_*.log
+
+# Files not to be included in GitHub repository
+.editorconfig
+.gitignore
