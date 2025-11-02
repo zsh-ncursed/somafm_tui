@@ -1,20 +1,20 @@
 # Maintainer: zsh-ncursed <zsh.ncursed@protonmail.com>
 pkgname=somafm_tui
-pkgver=0.3.0
+pkgver=0.3.1.r1.g832525b
 pkgrel=1
 pkgdesc="A console-based player for SomaFM internet radio with stream buffering support"
 arch=('any')
 url="https://github.com/zsh-ncursed/somafm_tui"
 license=('MIT')
-depends=('python' 'mpv' 'python-requests' 'python-mpv' 'python-urllib3')
+depends=('python' 'mpv' 'python-requests' 'python-mpv' 'python-urllib3' 'python-dbus-next')
 makedepends=('git')
-source=("git+https://github.com/zsh-ncursed/somafm_tui.git#commit=e81a3349947e630ad598a7b2183037ff372ff5a1")
-sha256sums=('08b2a6734c2937110241bbb6a6cda449fb4402152e25de241112730e89cea5c5')
+source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.3.1")
+sha256sums=('SKIP')
 
-#pkgver() {
-#    cd "$pkgname"
-#    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//'
-#}
+pkgver() {
+    cd "$pkgname"
+    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//'
+}
 
 prepare() {
     cd "$pkgname"
@@ -56,7 +56,7 @@ package() {
     
     # Install shell completions if they exist
     [[ -f somafm.bash ]] && install -Dm644 somafm.bash "$pkgdir/usr/share/bash-completion/completions/somafm"
-    [[ -f somafm.fish ]] && install -Dm644 somafm.fish "$pkgdir/usr/share/fish/vendor_completions.d/somafm.fish"
+    [[ -f somafm.fish ]] && install -Dm644 somafm.fish "$pkgdir/usr/share/fish/vendor_completions.d/somafm"
     
     # Install documentation
     install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
