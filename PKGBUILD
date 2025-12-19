@@ -1,6 +1,6 @@
 # Maintainer: zsh-ncursed <zsh.ncursed@protonmail.com>
 pkgname=somafm_tui
-pkgver=0.3.1.r1.g832525b
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="A console-based player for SomaFM internet radio with stream buffering support"
 arch=('any')
@@ -10,11 +10,6 @@ depends=('python' 'mpv' 'python-requests' 'python-mpv' 'python-urllib3' 'python-
 makedepends=('git')
 source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.3.1")
 sha256sums=('SKIP')
-
-pkgver() {
-    cd "$pkgname"
-    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//'
-}
 
 prepare() {
     cd "$pkgname"
