@@ -1,7 +1,7 @@
 # Maintainer: zsh-ncursed <zsh.ncursed@protonmail.com>
 pkgname=somafm_tui
 pkgver=0.3.1
-pkgrel=1
+pkgrel=2
 pkgdesc="A console-based player for SomaFM internet radio with stream buffering support"
 arch=('any')
 url="https://github.com/zsh-ncursed/somafm_tui"
