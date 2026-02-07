@@ -45,9 +45,13 @@ class CombinedScreen:
         self.track_history = []
         self.current_channel = None
         self.player = None
+        self.volume_display = None  # Current volume to display (None = hide)
+        self.volume_display_time = 0  # Time when volume was last changed
+        self.volume_display_was_visible = False  # Track if volume indicator was visible in previous frame
 
     def display(self, stdscr, channels, selected_index, scroll_offset, channel_favorites, current_channel=None, player=None, is_playing=False, is_searching=False, search_query=""):
         """Display combined interface with channels on left and playback on right"""
+        import time
         max_y, max_x = stdscr.getmaxyx()
 
         # Fixed width for channels panel (30 characters), rest for playback
@@ -100,6 +104,7 @@ class CombinedScreen:
                 "f - favorite",
                 "t - theme",
                 "a - alt bg",
+                "PgUp/Dn - volume",
                 "q - quit"
             ]
 
@@ -145,6 +150,27 @@ class CombinedScreen:
 
         except curses.error:
             pass
+
+        # Display volume indicator - show for 3 seconds after last change
+        should_show_volume = False
+        if self.volume_display is not None:
+            # Show if volume was set less than 3 seconds ago
+            if time.time() - self.volume_display_time < 3:
+                should_show_volume = True
+            else:
+                # Hide after timeout
+                self.volume_display = None
+                self.volume_display_time = 0
+
+        # First, clear volume display if it was visible in the previous frame but shouldn't be anymore
+        if not should_show_volume and self.volume_display_was_visible:
+            self._clear_volume(stdscr)
+            self.volume_display_was_visible = False
+
+        # Then, display volume if needed
+        if should_show_volume:
+            self._display_volume(stdscr)
+            self.volume_display_was_visible = True
 
         stdscr.refresh()
 
@@ -299,6 +325,12 @@ class CombinedScreen:
         else:
             logging.debug("Metadata unchanged, skipping update")
 
+    def show_volume(self, stdscr, volume: int):
+        """Set volume to display (will be shown on next display() call)"""
+        import time
+        self.volume_display = volume
+        self.volume_display_time = time.time()  # Remember when volume was changed
+
     def show_notification(self, stdscr, message, timeout=1.5):
         """Show notification overlay"""
         max_y, max_x = stdscr.getmaxyx()
@@ -315,6 +347,75 @@ class CombinedScreen:
             curses.napms(int(timeout * 1000))
             notif_win.clear()
             notif_win.refresh()
+        except curses.error:
+            pass
+
+
+    def _display_volume(self, stdscr):
+        """Draw volume level at top-right corner with orange bar and speaker icon"""
+        max_y, max_x = stdscr.getmaxyx()
+        bar_width = 20
+        start_y = 1
+        start_x = max_x - bar_width - 5  # Positioned at top-right (closer to edge)
+
+        try:
+            volume = self.volume_display
+
+            # Orange color for the bar (one solid color)
+            vol_bar_color = 60  # color_pair 60 - orange
+            vol_icon_color = 61  # color_pair 61 - yellow
+
+            # Draw volume bar (filled part with orange)
+            filled_blocks = int((volume / 100) * bar_width)
+            empty_blocks = bar_width - filled_blocks
+
+            # Draw filled blocks with orange (no space between icon and bar)
+            if filled_blocks > 0:
+                filled_bar = "█" * filled_blocks
+                try:
+                    stdscr.addstr(start_y, start_x, filled_bar, curses.color_pair(vol_bar_color) | curses.A_BOLD)
+                except curses.error:
+                    pass
+
+            # Draw empty blocks with dimmed orange
+            if empty_blocks > 0:
+                empty_bar = "▁" * empty_blocks
+                try:
+                    stdscr.addstr(start_y, start_x + filled_blocks, empty_bar, curses.color_pair(vol_bar_color) | curses.A_DIM)
+                except curses.error:
+                    pass
+
+            # Draw speaker icon (immediately to the left of bar, no space)
+            vol_icon = "🔊"
+            icon_x = start_x - len(vol_icon)
+            try:
+                stdscr.addstr(start_y, icon_x, vol_icon, curses.color_pair(vol_icon_color) | curses.A_BOLD)
+            except curses.error:
+                pass
+
+            # Draw percentage (immediately to the right of bar, no space)
+            vol_text = f"{volume:3d}%"
+            text_x = start_x + bar_width
+            try:
+                stdscr.addstr(start_y, text_x, vol_text, curses.color_pair(vol_icon_color) | curses.A_BOLD)
+            except curses.error:
+                pass
+
+        except curses.error:
+            pass
+
+    def _clear_volume(self, stdscr):
+        """Clear volume display from screen"""
+        max_y, max_x = stdscr.getmaxyx()
+        bar_width = 20
+        start_y = 1
+        start_x = max_x - bar_width - 5
+
+        try:
+            # Clear the line where volume is displayed
+            width = bar_width + 10  # Include space for icon and text
+            clear_line = " " * width
+            stdscr.addstr(start_y, start_x - 5, clear_line, curses.color_pair(1))
         except curses.error:
             pass
 
@@ -355,6 +456,7 @@ class SomaFMPlayer:
         self.combined_screen = CombinedScreen()
         self.stdscr = None  # Store stdscr for updates
         self.alternative_bg_mode = self.config.get('alternative_bg_mode', False)  # Alternative background mode (pure black instead of dark gray)
+        self.volume = self.config.get('volume', 100)  # Load volume from config, default 100
 
         # Search state
         self.is_searching = False
@@ -826,6 +928,20 @@ class SomaFMPlayer:
         curses.init_pair(5, theme['instructions'], bg_color) # Instructions
         curses.init_pair(6, theme['favorite'], bg_color)    # Favorite icon
 
+        # Volume gradient colors
+        curses.init_pair(50, 21, bg_color)   # Volume 0% - dark blue
+        curses.init_pair(51, 27, bg_color)   # Volume 25% - medium blue
+        curses.init_pair(52, 69, bg_color)   # Volume 50% - light blue
+        curses.init_pair(53, 79, bg_color)   # Volume 75% - cyan
+        curses.init_pair(54, 88, bg_color)   # Volume 100% - red
+        curses.init_pair(55, 214, bg_color)  # Volume icon - yellow
+
+        # Volume indicator colors (separate from themes)
+        curses.init_color(175, 1000, 600, 0)   # Orange for volume bar
+        curses.init_color(176, 980, 820, 0)    # Yellow for speaker icon
+        curses.init_pair(60, 175, bg_color)    # Volume bar - orange
+        curses.init_pair(61, 176, bg_color)    # Speaker icon - yellow
+
         # Special handling for monochrome themes to ensure selected text is visible
         if theme_name == 'monochrome' or theme_name == 'monochrome-dark':
             curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Selected channel
@@ -852,6 +968,8 @@ class SomaFMPlayer:
             "dbus_send_metadata": False,
             "dbus_send_metadata_artworks": False,
             "dbus_cache_metadata_artworks": True,
+            "# volume: Default volume (0-100)": "",
+            "volume": 100,
         }
 
         try:
@@ -874,7 +992,7 @@ class SomaFMPlayer:
                         value = value.strip()
 
                         # Handle different value types
-                        if key in ['buffer_minutes', 'buffer_size_mb']:
+                        if key in ['buffer_minutes', 'buffer_size_mb', 'volume']:
                             config_dict[key] = int(value)
                         elif key in ['alternative_bg_mode', 'dbus_allowed', 'dbus_send_metadata', 'dbus_send_metadata_artworks', 'dbus_cache_metadata_artworks']:
                             config_dict[key] = value.lower() in ['true', '1', 'yes', 'on']
@@ -1092,6 +1210,25 @@ class SomaFMPlayer:
                 if self.mpris_service:
                     self.mpris_service.update_playback_status("Paused")
 
+    def _set_volume(self, volume: int):
+        """Set volume (0-100)"""
+        self.volume = max(0, min(100, volume))
+        # Update config and save
+        self.config['volume'] = self.volume
+        self._save_config()
+        if self.player:
+            self.player.volume = self.volume
+
+    def _increase_volume(self, step: int = 5):
+        """Increase volume by step"""
+        self._set_volume(self.volume + step)
+        self.combined_screen.show_volume(self.stdscr, self.volume)
+
+    def _decrease_volume(self, step: int = 5):
+        """Decrease volume by step"""
+        self._set_volume(self.volume - step)
+        self.combined_screen.show_volume(self.stdscr, self.volume)
+
     def _cleanup(self):
         """Clean up resources"""
         if self.buffer:
@@ -1125,102 +1262,154 @@ class SomaFMPlayer:
                 # Enable Unicode support
                 curses.raw()
                 # Enable non-blocking mode
-                stdscr.nodelay(False)
+                stdscr.nodelay(True)
+
+                # Initial display of the interface
+                self._display_combined_interface(stdscr)
 
                 # Main loop
+                last_input_time = time.time()
+
                 while self.running:
-                    self._display_combined_interface(stdscr)
+                    # Check if we need to refresh the screen due to volume indicator timeout
+                    needs_refresh = False
+
+                    # Check if volume indicator should be hidden
+                    if (self.combined_screen.volume_display is not None and
+                        time.time() - self.combined_screen.volume_display_time >= 3):
+                        # Update the volume display state to hide it
+                        self.combined_screen.volume_display = None
+                        needs_refresh = True
+
+                    # Only redraw if needed
+                    if needs_refresh:
+                        self._display_combined_interface(stdscr)
 
                     # Get user input
                     try:
                         key = stdscr.get_wch()
-                        logging.debug(f"Pressed key: {key} (type: {type(key)})")
+                        if key is not None:
+                            last_input_time = time.time()
+                            logging.debug(f"Pressed key: {key} (type: {type(key)})")
 
-                        if self.is_searching:
-                            if key == chr(27):  # ESC
-                                self.is_searching = False
-                                self.search_query = ""
-                            elif key in [curses.KEY_BACKSPACE, '\b', '\x7f']:
-                                self.search_query = self.search_query[:-1]
-                            elif isinstance(key, str) and len(key) == 1 and key.isprintable():
-                                self.search_query += key
-                                self.current_index = 0
-                            # Navigation
-                            elif key == curses.KEY_UP or (isinstance(key, str) and key == 'k'):
-                                self.current_index = max(0, self.current_index - 1)
-                            elif key == curses.KEY_DOWN or (isinstance(key, str) and key == 'j'):
-                                if self.filtered_channels:
-                                    self.current_index = min(len(self.filtered_channels) - 1, self.current_index + 1)
-                            # Selection
-                            elif key in [curses.KEY_ENTER, '\n', '\r'] or (isinstance(key, str) and key == 'l'):
-                                if self.filtered_channels:
-                                    selected_channel = self.filtered_channels[self.current_index]
-                                    self._play_channel(selected_channel)
-                                    # Find original index to restore view
-                                    for i, ch in enumerate(self.channels):
-                                        if ch['id'] == selected_channel['id']:
-                                            self.current_index = i
-                                            break
-                                self.is_searching = False
-                                self.search_query = ""
-                        else:
-                            # Normal mode
-                            if isinstance(key, str):
-                                if key == '/':
-                                    self.is_searching = True
+                            if self.is_searching:
+                                if key == chr(27):  # ESC
+                                    self.is_searching = False
                                     self.search_query = ""
+                                elif key in [curses.KEY_BACKSPACE, '\b', '\x7f']:
+                                    self.search_query = self.search_query[:-1]
+                                elif isinstance(key, str) and len(key) == 1 and key.isprintable():
+                                    self.search_query += key
                                     self.current_index = 0
-                                elif key in ['q', 'Q', chr(27)]:
-                                    self.running = False
-                                elif key in ['h', 'H']:  # Stop playback
-                                    if self.is_playing:
-                                        self.player.stop()
-                                        self.is_playing = False
-                                        self.is_paused = False
-                                        self.current_channel = None
-                                        if self.buffer:
-                                            self.buffer.stop_buffering()
-                                            self.buffer.clear()
-                                        self.current_metadata = {'artist': 'Loading...', 'title': 'Loading...', 'duration': '--:'}
-                                        self.combined_screen.current_metadata = self.current_metadata.copy()
-                                elif key in ['\n', '\r', 'l']:
-                                    self._play_channel(self.channels[self.current_index])
-                                elif key == ' ':
-                                    if self.is_playing:
-                                        self._toggle_playback()
-                                elif key in ['f', 'F']:
-                                    if self.is_playing:
-                                        fav_dir = os.path.join(HOME, ".somafm_tui")
-                                        fav_file = os.path.join(fav_dir, "favorites.list")
-                                        os.makedirs(fav_dir, exist_ok=True)
-                                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                        meta = self.combined_screen.current_metadata
-                                        fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
-                                        with open(fav_file, "a") as f: f.write(fav_line)
-                                        self.combined_screen.show_notification(stdscr, f"Added to favorites: {meta['title']}")
-                                    else:
-                                        self._toggle_channel_favorite(self.channels[self.current_index]['id'])
-                                elif key == 'k':
+                                # Navigation
+                                elif key == curses.KEY_UP or (isinstance(key, str) and key == 'k'):
                                     self.current_index = max(0, self.current_index - 1)
-                                elif key == 'j':
-                                    self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                                elif key in ['t', 'T']:
-                                    self._cycle_theme()
-                                    self._init_colors()
-                                    stdscr.clear()
-                                    stdscr.refresh()
-                                elif key in ['a', 'A']:
-                                    self._toggle_alternative_bg()
-                                    stdscr.clear()
-                                    stdscr.refresh()
-                            else:  # Handle special keys
-                                if key == curses.KEY_UP:
-                                    self.current_index = max(0, self.current_index - 1)
-                                elif key == curses.KEY_DOWN:
-                                    self.current_index = min(len(self.channels) - 1, self.current_index + 1)
-                                elif key == curses.KEY_ENTER:
-                                    self._play_channel(self.channels[self.current_index])
+                                elif key == curses.KEY_DOWN or (isinstance(key, str) and key == 'j'):
+                                    if self.filtered_channels:
+                                        self.current_index = min(len(self.filtered_channels) - 1, self.current_index + 1)
+                                elif key == curses.KEY_PPAGE:  # PAGE_UP (inverted in terminal)
+                                    if self.is_playing:
+                                        self._increase_volume()
+                                        last_input_time = time.time()  # Update last input time when changing volume
+                                elif key == curses.KEY_NPAGE:  # PAGE_DOWN (inverted in terminal)
+                                    if self.is_playing:
+                                        self._decrease_volume()
+                                        last_input_time = time.time()  # Update last input time when changing volume
+                                # Selection
+                                elif key in [curses.KEY_ENTER, '\n', '\r'] or (isinstance(key, str) and key == 'l'):
+                                    if self.filtered_channels:
+                                        selected_channel = self.filtered_channels[self.current_index]
+                                        self._play_channel(selected_channel)
+                                        # Find original index to restore view
+                                        for i, ch in enumerate(self.channels):
+                                            if ch['id'] == selected_channel['id']:
+                                                self.current_index = i
+                                                break
+                                        self.is_searching = False
+                                        self.search_query = ""
+                            else:
+                                # Normal mode
+                                if isinstance(key, str):
+                                    if key == '/':
+                                        self.is_searching = True
+                                        self.search_query = ""
+                                        self.current_index = 0
+                                    elif key in ['q', 'Q', chr(27)]:
+                                        self.running = False
+                                    elif key in ['h', 'H']:  # Stop playback
+                                        if self.is_playing:
+                                            self.player.stop()
+                                            self.is_playing = False
+                                            self.is_paused = False
+                                            self.current_channel = None
+                                            if self.buffer:
+                                                self.buffer.stop_buffering()
+                                                self.buffer.clear()
+                                            self.current_metadata = {'artist': 'Loading...', 'title': 'Loading...', 'duration': '--:'}
+                                            self.combined_screen.current_metadata = self.current_metadata.copy()
+                                    elif key in ['\n', '\r', 'l']:
+                                        self._play_channel(self.channels[self.current_index])
+                                    elif key == ' ':
+                                        if self.is_playing:
+                                            self._toggle_playback()
+                                    elif key in ['f', 'F']:
+                                        if self.is_playing:
+                                            fav_dir = os.path.join(HOME, ".somafm_tui")
+                                            fav_file = os.path.join(fav_dir, "favorites.list")
+                                            os.makedirs(fav_dir, exist_ok=True)
+                                            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                            meta = self.combined_screen.current_metadata
+                                            fav_line = f"{meta['artist']} - {meta['title']} ({now})\n"
+                                            with open(fav_file, "a") as f: f.write(fav_line)
+                                            self.combined_screen.show_notification(stdscr, f"Added to favorites: {meta['title']}")
+                                        else:
+                                            self._toggle_channel_favorite(self.channels[self.current_index]['id'])
+                                    elif key == 'k':
+                                        self.current_index = max(0, self.current_index - 1)
+                                    elif key == 'j':
+                                        self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                                    elif key in ['t', 'T']:
+                                        self._cycle_theme()
+                                        self._init_colors()
+                                        stdscr.clear()
+                                        stdscr.refresh()
+                                    elif key in ['a', 'A']:
+                                        self._toggle_alternative_bg()
+                                        stdscr.clear()
+                                        stdscr.refresh()
+                                    elif key in ['v', 'V']:  # Volume controls
+                                        if self.is_playing:
+                                            self._decrease_volume()
+                                            last_input_time = time.time()  # Update last input time when changing volume
+                                    elif key in ['b', 'B']:
+                                        if self.is_playing:
+                                            self._increase_volume()
+                                            last_input_time = time.time()  # Update last input time when changing volume
+                                else:  # Handle special keys
+                                    if key == curses.KEY_UP:
+                                        self.current_index = max(0, self.current_index - 1)
+                                    elif key == curses.KEY_DOWN:
+                                        self.current_index = min(len(self.channels) - 1, self.current_index + 1)
+                                    elif key == curses.KEY_ENTER:
+                                        self._play_channel(self.channels[self.current_index])
+                                    elif key == curses.KEY_PPAGE:  # PAGE_UP (inverted in terminal)
+                                        if self.is_playing:
+                                            self._increase_volume()
+                                            last_input_time = time.time()  # Update last input time when changing volume
+                                    elif key == curses.KEY_NPAGE:  # PAGE_DOWN (inverted in terminal)
+                                        if self.is_playing:
+                                            self._decrease_volume()
+                                            last_input_time = time.time()  # Update last input time when changing volume
+
+                            # Redraw after handling input
+                            self._display_combined_interface(stdscr)
+                        else:
+                            # No key pressed, check if we need to refresh due to timeout
+                            # Only sleep briefly to check again soon
+                            time.sleep(0.1)  # Sleep briefly before checking again
                     except curses.error:
+                        # Handle case where no input is available
+                        time.sleep(0.1)  # Sleep briefly before checking again
                         continue
             except Exception as e:
                 self.had_error = True

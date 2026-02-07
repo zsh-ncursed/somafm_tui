@@ -17,6 +17,7 @@ A console-based player for SomaFM internet radio with stream buffering support.
 - **Automatic Channel Retrieval**: Fetches latest SomaFM channel list
 - **Intuitive Navigation**: Vim-style keys (hjkl) and arrow key support
 - **Stream Buffering**: Stable playback with configurable buffering
+- **Volume Control**: Adjustable volume with visual indicator (PageUp/PageDown keys)
 - **Track History**: Real-time metadata and playback history
 - **Favorites System**: Save favorite tracks and channels
 - **Responsive Design**: Adaptive interface that works on various screen sizes
@@ -133,13 +134,15 @@ Themes are designed to work well across different terminal emulators and their c
 
 ### Basic Controls
 - **↑/↓ or j/k**: Navigate through channels
-- ** / **: Search field channel
+- **/**: Search field channel
 - **Enter or l**: Play selected channel
 - **Space**: Pause/Resume playback
 - **h**: Stop playback
 - **f**: Add current track to favorites (or toggle channel favorite)
 - **t**: Cycle through color themes
 - **a**: Toggle alternative background mode (pure black vs dark gray)
+- **PageUp**: Increase volume
+- **PageDown**: Decrease volume
 - **q**: Quit application
 
 ### Files and Directories
@@ -149,6 +152,10 @@ Themes are designed to work well across different terminal emulators and their c
 - Temporary files: `/tmp/.somafmtmp/`
 - Logs: `/tmp/.somafmtmp/somafm.log`
 - Cached images: `/tmp/.somafmtmp/cache/artworks`
+
+### Volume Control
+
+Volume can be adjusted using **PageUp** (increase) and **PageDown** (decrease) keys. A visual volume indicator appears at the top-right corner showing the current volume level and automatically disappears after 3 seconds of inactivity.
 
 ### Error Handling
 
@@ -186,9 +193,15 @@ Themes are designed to work well across different terminal emulators and their c
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version
-Current version: 0.3.1
+Current version: 0.3.2
 
 ### Changelog
+
+#### Version 0.3.2
+- **Fixed Volume Indicator**: Volume indicator now properly hides after 3 seconds of inactivity
+- **Improved Screen Refresh Logic**: Optimized display refresh to avoid flickering while maintaining responsiveness
+- **Initial Display Fix**: Interface now displays immediately on startup without requiring key press
+- **Volume Control Documentation**: Updated documentation to reflect volume control functionality
 
 #### Version 0.3.1
 - **Updated Color Themes**: Expanded from 20 to 21 built-in color schemes (5 light, 16 dark)
