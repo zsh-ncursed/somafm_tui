@@ -50,9 +50,9 @@ Or use the provided shell scripts:
 | Key | Action |
 |-----|--------|
 | `Up/Down` or `j/k` | Navigate channels |
-| `Enter` | Play selected channel |
+| `Enter` or `l` | Play selected channel |
 | `Space` or `p` | Toggle play/pause |
-| `v` / `b` | Adjust volume |
+| `v/b` or `PgUp/PgDn` | Adjust volume |
 | `m` | Mute/unmute |
 | `/` | Search channels |
 | `Esc` | Clear search |
