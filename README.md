@@ -52,10 +52,10 @@ Or use the provided shell scripts:
 | `Up/Down` or `j/k` | Navigate channels |
 | `Enter` | Play selected channel |
 | `Space` or `p` | Toggle play/pause |
-| `+` / `-` | Adjust volume |
+| `v` / `b` | Adjust volume |
 | `m` | Mute/unmute |
 | `/` | Search channels |
-| `Esc` | Clear search / exit |
+| `Esc` | Clear search |
 | `f` | Toggle favorite |
 | `t` | Cycle through themes |
 | `q` | Quit |
