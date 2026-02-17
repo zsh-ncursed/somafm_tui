@@ -1,18 +1,16 @@
 pkgbase = somafm_tui
-	pkgdesc = A console-based player for SomaFM internet radio with stream buffering support
-	pkgver = 0.3.2
+	pkgdesc = Terminal user interface for SomaFM internet radio
+	pkgver = 0.4.0
 	pkgrel = 1
 	url = https://github.com/zsh-ncursed/somafm_tui
 	arch = any
 	license = MIT
 	makedepends = git
 	depends = python
-	depends = mpv
 	depends = python-requests
 	depends = python-mpv
-	depends = python-urllib3
 	depends = python-dbus-next
-	source = git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.3.2
+	source = git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.4.0
 	sha256sums = SKIP
 
 pkgname = somafm_tui

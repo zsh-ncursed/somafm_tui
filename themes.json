@@ -1,0 +1,233 @@
+{
+  "one-light": {
+    "name": "One Light",
+    "bg_color": "#fafafa",
+    "header": "#e45649",
+    "selected": "#383a42",
+    "info": "#50a14f",
+    "metadata": "#4078f2",
+    "instructions": "#0184bc",
+    "favorite": "#c18401",
+    "is_light": true
+  },
+  "github-light": {
+    "name": "GitHub Light",
+    "bg_color": "#ffffff",
+    "header": "#0969da",
+    "selected": "#24292f",
+    "info": "#28a745",
+    "metadata": "#d29922",
+    "instructions": "#cb2431",
+    "favorite": "#cb2431",
+    "is_light": true
+  },
+  "solarized-light": {
+    "name": "Solarized Light",
+    "bg_color": "#fdf6e3",
+    "header": "#b58900",
+    "selected": "#586e75",
+    "info": "#93a1a1",
+    "metadata": "#268bd2",
+    "instructions": "#859900",
+    "favorite": "#dc322f",
+    "is_light": true
+  },
+  "ayu-light": {
+    "name": "Ayu Light",
+    "bg_color": "#fafafa",
+    "header": "#e6b450",
+    "selected": "#575f66",
+    "info": "#8a9199",
+    "metadata": "#409c50",
+    "instructions": "#686868",
+    "favorite": "#ff9940",
+    "is_light": true
+  },
+  "material-light": {
+    "name": "Material Light",
+    "bg_color": "#fafafa",
+    "header": "#42a5f5",
+    "selected": "#263238",
+    "info": "#43a047",
+    "metadata": "#f57c00",
+    "instructions": "#546e7a",
+    "favorite": "#e53935",
+    "is_light": true
+  },
+  "one-dark": {
+    "name": "One Dark",
+    "bg_color": "#282c34",
+    "header": "#e06c75",
+    "selected": "#abb2bf",
+    "info": "#98c379",
+    "metadata": "#56b6c2",
+    "instructions": "#61afef",
+    "favorite": "#e5c07b",
+    "is_light": false
+  },
+  "dracula": {
+    "name": "Dracula",
+    "bg_color": "#282a36",
+    "header": "#f8f8f2",
+    "selected": "#ff79c6",
+    "info": "#50fa7b",
+    "metadata": "#8be9fd",
+    "instructions": "#bd93f9",
+    "favorite": "#ffb86c",
+    "is_light": false
+  },
+  "tokyo-night": {
+    "name": "Tokyo Night",
+    "bg_color": "#1e1a38",
+    "header": "#c0caf5",
+    "selected": "#f03d55",
+    "info": "#00d4ff",
+    "metadata": "#8a7b9d",
+    "instructions": "#a9b1d6",
+    "favorite": "#7aa2f7",
+    "is_light": false
+  },
+  "monokai": {
+    "name": "Monokai",
+    "bg_color": "#2e2e2e",
+    "header": "#f8f8f2",
+    "selected": "#e5b567",
+    "info": "#b4d273",
+    "metadata": "#e87d3e",
+    "instructions": "#9e86c8",
+    "favorite": "#b05279",
+    "is_light": false
+  },
+  "gruvbox": {
+    "name": "Gruvbox",
+    "bg_color": "#282828",
+    "header": "#ebdbb2",
+    "selected": "#fb4934",
+    "info": "#b8bb26",
+    "metadata": "#fabd2f",
+    "instructions": "#83a598",
+    "favorite": "#d3869b",
+    "is_light": false
+  },
+  "ayu-dark": {
+    "name": "Ayu Dark",
+    "bg_color": "#0f1419",
+    "header": "#c7cdd9",
+    "selected": "#ff3333",
+    "info": "#bae67e",
+    "metadata": "#73d0ff",
+    "instructions": "#c792ea",
+    "favorite": "#ffcc66",
+    "is_light": false
+  },
+  "solarized-dark": {
+    "name": "Solarized Dark",
+    "bg_color": "#002b36",
+    "header": "#839496",
+    "selected": "#b58900",
+    "info": "#2aa198",
+    "metadata": "#268bd2",
+    "instructions": "#6c71c4",
+    "favorite": "#d33682",
+    "is_light": false
+  },
+  "github-dark": {
+    "name": "GitHub Dark",
+    "bg_color": "#0d1117",
+    "header": "#c9d1d9",
+    "selected": "#539bf5",
+    "info": "#56d364",
+    "metadata": "#d29922",
+    "instructions": "#f0f6fc",
+    "favorite": "#f85149",
+    "is_light": false
+  },
+  "monochrome-dark": {
+    "name": "Monochrome Dark",
+    "bg_color": "#000000",
+    "header": "#ffffff",
+    "selected": "#ffffff",
+    "info": "#ffffff",
+    "metadata": "#ffffff",
+    "instructions": "#ffffff",
+    "favorite": "#ffffff",
+    "is_light": false
+  },
+  "nord": {
+    "name": "Nord",
+    "bg_color": "#2e3440",
+    "header": "#88c0d0",
+    "selected": "#d8dee9",
+    "info": "#8fbcbb",
+    "metadata": "#5e81ac",
+    "instructions": "#6c71c4",
+    "favorite": "#d08770",
+    "is_light": false
+  },
+  "night-owl": {
+    "name": "Night Owl",
+    "bg_color": "#011627",
+    "header": "#c792ea",
+    "selected": "#ffffff",
+    "info": "#82aaff",
+    "metadata": "#addb67",
+    "instructions": "#637777",
+    "favorite": "#ff5874",
+    "is_light": false
+  },
+  "catppuccin": {
+    "name": "Catppuccin",
+    "bg_color": "#1e1d2b",
+    "header": "#b4befe",
+    "selected": "#f5e0dc",
+    "info": "#a6e3a1",
+    "metadata": "#74c7ec",
+    "instructions": "#9399b2",
+    "favorite": "#f38ba8",
+    "is_light": false
+  },
+  "cobalt": {
+    "name": "Cobalt",
+    "bg_color": "#002240",
+    "header": "#ffffff",
+    "selected": "#e6f0ff",
+    "info": "#a9cfff",
+    "metadata": "#90c0f0",
+    "instructions": "#80a0d0",
+    "favorite": "#ff6480",
+    "is_light": false
+  },
+  "zenburn": {
+    "name": "Zenburn",
+    "bg_color": "#3f3f3f",
+    "header": "#dcdccc",
+    "selected": "#f0dfaf",
+    "info": "#ccffaf",
+    "metadata": "#7f9f7f",
+    "instructions": "#d0d0a0",
+    "favorite": "#dca3a3",
+    "is_light": false
+  },
+  "ayu-mirage": {
+    "name": "Ayu Mirage",
+    "bg_color": "#202734",
+    "header": "#f28779",
+    "selected": "#ffcc66",
+    "info": "#bae67e",
+    "metadata": "#73d0ff",
+    "instructions": "#c792ea",
+    "favorite": "#ffd700",
+    "is_light": false
+  },
+  "default": {
+    "name": "Default Dark",
+    "bg_color": "#000000",
+    "header": "#00ffff",
+    "selected": "#00ff00",
+    "info": "#ffff00",
+    "metadata": "#ff00ff",
+    "instructions": "#0000ff",
+    "favorite": "#ff0000",
+    "is_light": false
+  }
+}

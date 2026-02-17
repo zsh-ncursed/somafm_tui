@@ -1,0 +1,3 @@
+mpv
+requests
+dbus-python
