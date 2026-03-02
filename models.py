@@ -106,6 +106,34 @@ class Channel:
 
         return None
 
+    def get_available_bitrates(self) -> List[str]:
+        """Get list of available bitrates for this channel."""
+        bitrates = []
+        for playlist in self.playlists:
+            if playlist.get("format") == "mp3":
+                url = playlist.get("url", "")
+                # Extract bitrate from URL
+                for br in ["320", "256", "192", "128", "96", "64", "32"]:
+                    if br in url:
+                        bitrate = f"{br}k"
+                        if bitrate not in bitrates:
+                            bitrates.append(bitrate)
+                        break
+        # Sort by quality (highest first)
+        sorted_bitrates = sorted(bitrates, key=lambda x: int(x[:-1]), reverse=True)
+        return sorted_bitrates if sorted_bitrates else ["128k"]
+
+    def get_stream_url_for_bitrate(self, bitrate: str) -> Optional[str]:
+        """Get stream URL for specific bitrate."""
+        for playlist in self.playlists:
+            if playlist.get("format") == "mp3":
+                url = playlist.get("url", "")
+                br_value = bitrate[:-1]  # Remove 'k' suffix
+                if br_value in url:
+                    return url
+        # Fallback to default stream URL
+        return self.get_stream_url()
+
 
 @dataclass
 class TrackHistoryEntry:

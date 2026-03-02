@@ -72,6 +72,7 @@ class UIScreen:
         search_query: str = "",
         theme_name: str = "default",
         show_help: bool = False,
+        current_bitrate: str = "",
     ) -> None:
         """Display combined interface"""
         max_y, max_x = stdscr.getmaxyx()
@@ -135,6 +136,7 @@ class UIScreen:
             current_channel,
             player,
             is_playing,
+            current_bitrate,
         )
 
         # Display instructions at bottom
@@ -220,6 +222,7 @@ class UIScreen:
         current_channel: Optional[Channel],
         player: Any,
         is_playing: bool,
+        current_bitrate: str = "",
     ) -> None:
         """Display playback panel"""
         max_y, max_x = stdscr.getmaxyx()
@@ -267,8 +270,10 @@ class UIScreen:
                 stats_parts = []
                 if current_channel.listeners > 0:
                     stats_parts.append(f"{get_listener_icon()} {current_channel.listeners}")
-                if current_channel.bitrate:
-                    stats_parts.append(f"{get_bitrate_icon()} {current_channel.bitrate}")
+                # Use current_bitrate if set, otherwise channel default
+                display_bitrate = current_bitrate if current_bitrate else current_channel.bitrate
+                if display_bitrate:
+                    stats_parts.append(f"{get_bitrate_icon()} {display_bitrate}")
                 if stats_parts:
                     stats = " | ".join(stats_parts)
                     if len(stats) > available_width:
@@ -317,6 +322,8 @@ class UIScreen:
                 "Space - pause",
                 "h - stop",
                 "f - favorite",
+                "r - bitrate",
+                "s - sleep",
                 "t - theme",
                 "PgUp/Dn - volume",
                 "q - quit",
@@ -439,6 +446,73 @@ class UIScreen:
         except curses.error:
             pass
 
+    def display_sleep_overlay(
+        self,
+        stdscr: curses.window,
+        sleep_input: str,
+    ) -> None:
+        """Display sleep timer input overlay"""
+        max_y, max_x = stdscr.getmaxyx()
+
+        # Overlay dimensions
+        overlay_width = 30
+        overlay_height = 7
+        start_y = (max_y - overlay_height) // 2
+        start_x = (max_x - overlay_width) // 2
+
+        try:
+            # Create overlay window
+            overlay = curses.newwin(overlay_height, overlay_width, start_y, start_x)
+            overlay.bkgd(" ", curses.color_pair(1))
+            overlay.attron(curses.color_pair(3) | curses.A_BOLD)
+            overlay.border(0)
+            overlay.attroff(curses.color_pair(3) | curses.A_BOLD)
+
+            # Title
+            title = "Sleep Timer"
+            overlay.addstr(1, (overlay_width - len(title)) // 2, title, curses.color_pair(1) | curses.A_BOLD)
+
+            # Input field
+            input_label = "Minutes: "
+            input_value = sleep_input or ""
+            input_display = input_label + input_value + "_"
+            overlay.addstr(3, 2, input_display[:overlay_width - 4], curses.color_pair(2))
+
+            # Hints
+            overlay.addstr(5, 2, "Esc: cancel", curses.color_pair(5) | curses.A_DIM)
+
+            overlay.refresh()
+
+            # Position cursor at input
+            curses.curs_set(1)
+            stdscr.move(start_y + 3, start_x + 2 + len(input_label) + len(input_value))
+
+        except curses.error:
+            pass
+
+    def display_sleep_timer(
+        self,
+        stdscr: curses.window,
+        remaining: str,
+    ) -> None:
+        """Display sleep timer countdown in bottom right corner"""
+        if not remaining:
+            return
+
+        max_y, max_x = stdscr.getmaxyx()
+
+        # Timer format: " ⏱ MM:SS "
+        timer_text = f" ⏱ {remaining} "
+        timer_width = len(timer_text)
+        start_y = max_y - 3  # Above instructions
+        start_x = max_x - timer_width - 1
+
+        try:
+            # Draw timer box
+            stdscr.addstr(start_y, start_x, timer_text, curses.color_pair(3) | curses.A_BOLD)
+        except curses.error:
+            pass
+
     def _display_volume(self, stdscr: curses.window) -> None:
         """Display volume level"""
         max_y, max_x = stdscr.getmaxyx()
@@ -499,6 +573,7 @@ class UIScreen:
             ("Playback", "section"),
             ("  Space - Pause/Resume", "normal"),
             ("  h     - Stop playback", "normal"),
+            ("  r     - Cycle bitrate", "normal"),
             ("  v/b   - Decrease/Increase volume", "normal"),
             ("  PgUp  - Increase volume", "normal"),
             ("  PgDn  - Decrease volume", "normal"),
@@ -507,13 +582,16 @@ class UIScreen:
             ("  /     - Search channels", "normal"),
             ("  f     - Toggle favorite", "normal"),
             ("", ""),
+            ("Timer", "section"),
+            ("  s     - Set sleep timer", "normal"),
+            ("", ""),
             ("Appearance", "section"),
             ("  t     - Cycle theme", "normal"),
             ("", ""),
             ("Other", "section"),
             ("  ?     - Toggle this help", "normal"),
             ("  q     - Quit", "normal"),
-            ("  ESC   - Close search/help", "normal"),
+            ("  ESC   - Close search/help/timer", "normal"),
         ]
 
         # Calculate box size

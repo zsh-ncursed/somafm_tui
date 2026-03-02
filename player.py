@@ -36,6 +36,7 @@ from somafm_tui.channels import (
     sort_channels_by_usage,
 )
 from somafm_tui.ui import UIScreen
+from somafm_tui.timer import SleepTimer
 from somafm_tui.mpris_service import MPRISService, run_mpris_loop
 
 
@@ -133,6 +134,16 @@ class SomaFMPlayer:
 
         # Help state
         self.show_help = False
+
+        # Sleep timer state
+        self.sleep_timer = SleepTimer()
+        self.sleep_overlay_active = False
+        self.sleep_input = ""
+        self._last_timer_display = 0
+        self._last_timer_check = 0
+
+        # Bitrate state
+        self.current_bitrate = ""
 
         # Metadata observer
         @self.player.property_observer("metadata")
@@ -260,7 +271,16 @@ class SomaFMPlayer:
                 is_searching=self.is_searching,
                 search_query=self.search_query,
                 show_help=self.show_help,
+                current_bitrate=self.current_bitrate,
             )
+
+            # Show sleep overlay if active
+            if self.sleep_overlay_active:
+                self.ui_screen.display_sleep_overlay(self.stdscr, self.sleep_input)
+
+            # Show sleep timer countdown if active
+            if self.sleep_timer.is_active():
+                self.ui_screen.display_sleep_timer(self.stdscr, self.sleep_timer.format_remaining())
 
     def _play_channel(self, channel: Channel) -> None:
         """Play channel"""
@@ -289,6 +309,9 @@ class SomaFMPlayer:
             self.current_channel = channel
             self.is_playing = True
             self.is_paused = False
+
+            # Set initial bitrate from channel
+            self.current_bitrate = channel.bitrate
 
             self.ui_screen.current_channel = channel
             self.ui_screen.player = self.player
@@ -438,6 +461,26 @@ class SomaFMPlayer:
                 self._display_interface()
 
                 while self.running and not self._signal_received:
+                    current_time = time.time()
+
+                    # Check timer expiration every minute
+                    if self.sleep_timer.is_active():
+                        if current_time - self._last_timer_check >= 60:
+                            self._last_timer_check = current_time
+                        if self.sleep_timer.get_remaining_seconds() <= 0:
+                            logging.info("Sleep timer expired, shutting down")
+                            self.running = False
+                            break
+
+                    # Update timer display every second
+                    if self.sleep_timer.is_active():
+                        if current_time - self._last_timer_display >= 1:
+                            self._last_timer_display = current_time
+                            self.ui_screen.display_sleep_timer(
+                                self.stdscr, self.sleep_timer.format_remaining()
+                            )
+                            stdscr.refresh()
+
                     # Check volume display timeout
                     needs_refresh = False
                     if (
@@ -478,12 +521,39 @@ class SomaFMPlayer:
 
     def _handle_input(self, key: Any) -> None:
         """Handle user input"""
-        if self.is_searching:
+        if self.sleep_overlay_active:
+            self._handle_sleep_input(key)
+        elif self.is_searching:
             self._handle_search_input(key)
         else:
             self._handle_normal_input(key)
 
         self._display_interface()
+
+    def _handle_sleep_input(self, key: Any) -> None:
+        """Handle input in sleep overlay mode"""
+        if key == chr(27):  # ESC
+            self.sleep_overlay_active = False
+            self.sleep_input = ""
+        elif key in (curses.KEY_BACKSPACE, "\b", "\x7f"):
+            self.sleep_input = self.sleep_input[:-1]
+        elif isinstance(key, str) and key.isdigit():
+            # Limit to 3 digits (max 999 minutes)
+            if len(self.sleep_input) < 3:
+                self.sleep_input += key
+        elif key in (curses.KEY_ENTER, "\n", "\r"):
+            # Set timer
+            if self.sleep_input:
+                try:
+                    minutes = int(self.sleep_input)
+                    if minutes > 0:
+                        self.sleep_timer.set(minutes)
+                        if self.stdscr:
+                            self.ui_screen.show_notification(self.stdscr, f"Sleep timer: {minutes} min")
+                except ValueError:
+                    pass
+            self.sleep_overlay_active = False
+            self.sleep_input = ""
 
     def _handle_search_input(self, key: Any) -> None:
         """Handle input in search mode"""
@@ -554,6 +624,11 @@ class SomaFMPlayer:
                 self._decrease_volume()
             elif key in ("b", "B"):
                 self._increase_volume()
+            elif key in ("s", "S"):
+                self.sleep_overlay_active = True
+                self.sleep_input = ""
+            elif key in ("r", "R"):
+                self._cycle_bitrate()
         else:
             # Special keys
             if key == curses.KEY_UP:
@@ -580,6 +655,42 @@ class SomaFMPlayer:
 
         if self.stdscr:
             self.ui_screen.show_notification(self.stdscr, message)
+
+    def _cycle_bitrate(self) -> None:
+        """Cycle to next available bitrate"""
+        if not self.current_channel or not self.is_playing:
+            return
+
+        available = self.current_channel.get_available_bitrates()
+        if len(available) <= 1:
+            return
+
+        # Find current bitrate index
+        current = self.current_bitrate if self.current_bitrate else self.current_channel.bitrate
+
+        try:
+            current_idx = available.index(current)
+            # Move to next (lower quality), wrap around to highest
+            next_idx = (current_idx + 1) % len(available)
+        except ValueError:
+            # Current bitrate not in list, use first (highest)
+            next_idx = 0
+
+        new_bitrate = available[next_idx]
+        new_url = self.current_channel.get_stream_url_for_bitrate(new_bitrate)
+
+        if new_url:
+            # Restart playback with new bitrate
+            was_paused = self.is_paused
+            self.player.stop()
+            self.player.play(new_url)
+            if was_paused:
+                self.player.pause = True
+
+            self.current_bitrate = new_bitrate
+
+            if self.stdscr:
+                self.ui_screen.show_notification(self.stdscr, f"Bitrate: {new_bitrate}")
 
 
 def main() -> None:
