@@ -310,8 +310,9 @@ class SomaFMPlayer:
             self.is_playing = True
             self.is_paused = False
 
-            # Set initial bitrate from channel
-            self.current_bitrate = channel.bitrate
+            # Set initial bitrate - use first available bitrate (highest quality mp3)
+            available = channel.get_available_bitrates()
+            self.current_bitrate = available[0] if available else "mp3:128k"
 
             self.ui_screen.current_channel = channel
             self.ui_screen.player = self.player
@@ -689,9 +690,12 @@ class SomaFMPlayer:
 
             self.current_bitrate = new_bitrate
 
+            # Extract bitrate label for notification (e.g., 'mp3:128k' -> '128k')
+            bitrate_label = new_bitrate.split(":")[1] if ":" in new_bitrate else new_bitrate
+
             if self.stdscr:
                 # Show notification without blocking
-                self.ui_screen.show_notification(self.stdscr, f"Bitrate: {new_bitrate}", timeout=0.5)
+                self.ui_screen.show_notification(self.stdscr, f"Bitrate: {bitrate_label}", timeout=0.5)
 
 
 def main() -> None:

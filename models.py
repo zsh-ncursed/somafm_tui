@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from datetime import datetime
+import re
 
 
 @dataclass
@@ -107,32 +108,100 @@ class Channel:
         return None
 
     def get_available_bitrates(self) -> List[str]:
-        """Get list of available bitrates for this channel."""
-        bitrates = []
+        """Get list of available bitrates for this channel.
+        
+        Returns bitrates from all playlist formats (mp3, aac, aacp).
+        Bitrate is extracted from playlist URL filename.
+        """
+        bitrates = set()
+        
         for playlist in self.playlists:
-            if playlist.get("format") == "mp3":
-                url = playlist.get("url", "")
-                # Extract bitrate from URL
-                for br in ["320", "256", "192", "128", "96", "64", "32"]:
-                    if br in url:
-                        bitrate = f"{br}k"
-                        if bitrate not in bitrates:
-                            bitrates.append(bitrate)
-                        break
-        # Sort by quality (highest first)
-        sorted_bitrates = sorted(bitrates, key=lambda x: int(x[:-1]), reverse=True)
-        return sorted_bitrates if sorted_bitrates else ["128k"]
+            fmt = playlist.get("format", "")
+            url = playlist.get("url", "")
+            
+            # Extract bitrate from playlist filename
+            # Patterns: bootliquor320.pls, beatblender130.pls, 7soul64.pls
+            match = re.search(r'(\d{2,3})\.pls$', url)
+            if match:
+                br_num = int(match.group(1))
+                # Map to standard bitrate labels
+                if br_num >= 256:
+                    br_label = "320k"
+                elif br_num >= 128:
+                    br_label = "128k"
+                elif br_num >= 64:
+                    br_label = "64k"
+                else:
+                    br_label = "32k"
+                bitrates.add(f"{fmt}:{br_label}")
+            else:
+                # Default bitrate for playlists without number in name
+                bitrates.add(f"{fmt}:128k")
+        
+        # Sort by format priority (mp3 first) then by bitrate
+        format_priority = {"mp3": 0, "aac": 1, "aacp": 2}
+        bitrate_order = {"320k": 0, "256k": 1, "192k": 2, "128k": 3, "96k": 4, "64k": 5, "32k": 6}
+        
+        def sort_key(item):
+            fmt, br = item.split(":")
+            return (format_priority.get(fmt, 99), bitrate_order.get(br, 99))
+        
+        sorted_bitrates = sorted(bitrates, key=sort_key)
+        return sorted_bitrates if sorted_bitrates else ["mp3:128k"]
 
     def get_stream_url_for_bitrate(self, bitrate: str) -> Optional[str]:
-        """Get stream URL for specific bitrate."""
+        """Get stream URL for specific bitrate.
+        
+        Bitrate format: 'mp3:128k', 'aac:128k', etc.
+        """
+        if ":" in bitrate:
+            target_fmt, target_br = bitrate.split(":")
+        else:
+            target_fmt = "mp3"
+            target_br = bitrate
+        
+        # Map bitrate label back to filename pattern
+        br_to_num = {
+            "320k": "320",
+            "256k": "256", 
+            "192k": "192",
+            "128k": "130",  # SomaFM uses 130 for 128k
+            "96k": "96",
+            "64k": "64",
+            "32k": "32",
+        }
+        target_num = br_to_num.get(target_br, "130")
+        
+        # Find matching playlist
         for playlist in self.playlists:
-            if playlist.get("format") == "mp3":
-                url = playlist.get("url", "")
-                br_value = bitrate[:-1]  # Remove 'k' suffix
-                if br_value in url:
+            fmt = playlist.get("format", "")
+            url = playlist.get("url", "")
+            
+            if fmt == target_fmt:
+                # Check if bitrate matches
+                if target_num in url:
                     return url
-        # Fallback to default stream URL
-        return self.get_stream_url()
+                # Also accept default if no bitrate in URL
+                elif url.endswith(".pls") and not re.search(r'\d{2,3}\.pls$', url):
+                    return url
+        
+        # Fallback to first playlist of target format
+        for playlist in self.playlists:
+            if playlist.get("format") == target_fmt:
+                return playlist.get("url")
+        
+        # Final fallback to any playlist
+        for playlist in self.playlists:
+            if playlist.get("url"):
+                return playlist.get("url")
+        
+        return None
+
+    def get_bitrate_label(self) -> str:
+        """Get human-readable bitrate label for current stream."""
+        if self.bitrate:
+            return self.bitrate
+        return "128k"
 
 
 @dataclass

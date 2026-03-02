@@ -271,9 +271,14 @@ class UIScreen:
                 if current_channel.listeners > 0:
                     stats_parts.append(f"{get_listener_icon()} {current_channel.listeners}")
                 # Use current_bitrate if set, otherwise channel default
+                # Extract bitrate label from format like 'mp3:128k' -> '128k'
                 display_bitrate = current_bitrate if current_bitrate else current_channel.bitrate
                 if display_bitrate:
-                    stats_parts.append(f"{get_bitrate_icon()} {display_bitrate}")
+                    if ":" in display_bitrate:
+                        bitrate_label = display_bitrate.split(":")[1]
+                    else:
+                        bitrate_label = display_bitrate
+                    stats_parts.append(f"{get_bitrate_icon()} {bitrate_label}")
                 if stats_parts:
                     stats = " | ".join(stats_parts)
                     if len(stats) > available_width:
