@@ -151,7 +151,7 @@ class Channel:
 
     def get_stream_url_for_bitrate(self, bitrate: str) -> Optional[str]:
         """Get stream URL for specific bitrate.
-        
+
         Bitrate format: 'mp3:128k', 'aac:128k', etc.
         """
         if ":" in bitrate:
@@ -159,11 +159,12 @@ class Channel:
         else:
             target_fmt = "mp3"
             target_br = bitrate
-        
+
         # Map bitrate label back to filename pattern
+        # SomaFM uses: 320, 130 (for 128k), 64, etc.
         br_to_num = {
             "320k": "320",
-            "256k": "256", 
+            "256k": "256",
             "192k": "192",
             "128k": "130",  # SomaFM uses 130 for 128k
             "96k": "96",
@@ -171,30 +172,40 @@ class Channel:
             "32k": "32",
         }
         target_num = br_to_num.get(target_br, "130")
-        
+
+        # Also map back from standard numbers (for non-SomaFM playlists)
+        br_alt_map = {
+            "128k": ["128", "130"],  # Accept both 128 and 130
+            "320k": ["320"],
+            "64k": ["64"],
+            "32k": ["32"],
+        }
+        alt_nums = br_alt_map.get(target_br, [target_num])
+
         # Find matching playlist
         for playlist in self.playlists:
             fmt = playlist.get("format", "")
             url = playlist.get("url", "")
-            
+
             if fmt == target_fmt:
-                # Check if bitrate matches
-                if target_num in url:
-                    return url
+                # Check if any of the bitrate numbers match
+                for num in alt_nums:
+                    if num in url:
+                        return url
                 # Also accept default if no bitrate in URL
-                elif url.endswith(".pls") and not re.search(r'\d{2,3}\.pls$', url):
+                if url.endswith(".pls") and not re.search(r'\d{2,3}\.pls$', url):
                     return url
-        
+
         # Fallback to first playlist of target format
         for playlist in self.playlists:
             if playlist.get("format") == target_fmt:
                 return playlist.get("url")
-        
+
         # Final fallback to any playlist
         for playlist in self.playlists:
             if playlist.get("url"):
                 return playlist.get("url")
-        
+
         return None
 
     def get_bitrate_label(self) -> str:
