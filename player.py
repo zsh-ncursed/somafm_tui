@@ -690,7 +690,8 @@ class SomaFMPlayer:
             self.current_bitrate = new_bitrate
 
             if self.stdscr:
-                self.ui_screen.show_notification(self.stdscr, f"Bitrate: {new_bitrate}")
+                # Show notification without blocking
+                self.ui_screen.show_notification(self.stdscr, f"Bitrate: {new_bitrate}", timeout=0.5)
 
 
 def main() -> None:
