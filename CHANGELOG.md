@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.4] - 2026-03-03
+
+### Added
+- Comprehensive documentation for GitHub release
+- README.md with full feature list and installation guide
+- CHANGELOG.md following Keep a Changelog format
+- Updated CONTRIBUTING.md with development guidelines
+
+### Changed
+- Updated email contact to zsh.ncursed@gmail.com
+- Improved AUR installation instructions
+
+### Fixed
+- Documentation consistency and formatting
+
+---
+
 ## [0.4.0] - 2024-03-01
 
 ### Added
@@ -91,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Release Date | Key Features |
 |---------|-------------|--------------|
+| 0.4.4 | 2026-03-03 | Documentation update, AUR instructions |
 | 0.4.0 | 2024-03-01 | Sleep timer, bitrate cycling, MPRIS, themes |
 | 0.3.0 | 2024-01-15 | Favorites, metadata, volume control |
 | 0.2.0 | 2023-11-20 | Basic playback, AUR package |
