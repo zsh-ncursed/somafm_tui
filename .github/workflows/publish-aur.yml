@@ -1,0 +1,41 @@
+name: Publish to AUR
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-aur:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get release version
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Validate PKGBUILD version
+        run: |
+          PKGVER=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+          TAG_VERSION="${{ steps.get_version.outputs.version }}"
+          if [ "$PKGVER" != "$TAG_VERSION" ]; then
+            echo "Error: PKGBUILD version ($PKGVER) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version match: $PKGVER"
+
+      - name: Update AUR package
+        uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
+        with:
+          pkgname: somafm_tui
+          pkgbuild: PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to version ${{ steps.get_version.outputs.version }}"
+          ssh_keyscan_types: rsa,ed25519
