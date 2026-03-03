@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Local buffer support for timeshift functionality
 - Listening history export feature
 - Last.fm integration (scrobbling)
 - Support for other streaming services

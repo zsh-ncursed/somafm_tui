@@ -319,7 +319,6 @@ Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ## 🗺 Roadmap
 
-- [ ] Local buffer support for timeshift
 - [ ] Listening history export
 - [ ] Last.fm integration (scrobbling)
 - [ ] Support for other streaming services

@@ -135,8 +135,7 @@ class MediaPlayer2PlayerInterface(ServiceInterface):
     @method()
     def Seek(self, offset: "x") -> None:
         """Seek by offset in microseconds"""
-        # For live streams, seeking is not supported, but we acknowledge the request
-        # In a real implementation, this would seek within the buffer
+        # For live streams, seeking is not supported
         pass
 
     @method()
