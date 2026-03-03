@@ -43,3 +43,6 @@ Thumbs.db
 # Application
 *.log
 tests/
+
+.qwen/
+gha-creds-*.json

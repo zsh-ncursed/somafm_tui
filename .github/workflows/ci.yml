@@ -37,4 +37,5 @@ jobs:
 
       - name: Verify package structure
         run: |
+          pip install -e .
           python -c "from somafm_tui.player import SomaFMPlayer; print('OK')"
