@@ -30,6 +30,19 @@ jobs:
           fi
           echo "Version match: $PKGVER"
 
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+      - name: Test SSH connection
+        run: |
+          ssh -T -i ~/.ssh/id_ed25519 aur@aur.archlinux.org || echo "SSH test failed"
+
       - name: Update AUR package
         uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
         with:
