@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Documentation consistency and formatting
+- Remove unused StreamBuffer module (SomaFM supports live streams only)
+- Clean up buffer-related code from mpris_service.py and models.py
 
 ---
 

@@ -41,7 +41,6 @@ somafm_tui/
 ├── themes.json         # Theme definitions (JSON format)
 ├── models.py           # Data types (dataclasses)
 ├── channels.py         # SomaFM channel handling
-├── stream_buffer.py    # Stream buffering (unused)
 ├── mpris_service.py    # MPRIS D-Bus service for media keys
 ├── ui.py               # User interface rendering
 ├── http_client.py      # HTTP requests with retry logic

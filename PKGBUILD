@@ -52,11 +52,11 @@ package() {
     install -Dm644 themes.json "$pkgdir/usr/lib/somafm_tui/themes.json"
     install -Dm644 models.py "$pkgdir/usr/lib/somafm_tui/models.py"
     install -Dm644 channels.py "$pkgdir/usr/lib/somafm_tui/channels.py"
-    install -Dm644 stream_buffer.py "$pkgdir/usr/lib/somafm_tui/stream_buffer.py"
     install -Dm644 mpris_service.py "$pkgdir/usr/lib/somafm_tui/mpris_service.py"
     install -Dm644 ui.py "$pkgdir/usr/lib/somafm_tui/ui.py"
     install -Dm644 http_client.py "$pkgdir/usr/lib/somafm_tui/http_client.py"
     install -Dm644 terminal.py "$pkgdir/usr/lib/somafm_tui/terminal.py"
+    install -Dm644 timer.py "$pkgdir/usr/lib/somafm_tui/timer.py"
 
     # Install executable wrapper
     install -Dm755 somafm_tui "$pkgdir/usr/bin/somafm-tui"

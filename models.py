@@ -235,8 +235,6 @@ class TrackHistoryEntry:
 @dataclass
 class AppConfig:
     """Application configuration"""
-    buffer_minutes: int = 5
-    buffer_size_mb: int = 50
     theme: str = "default"
     alternative_bg_mode: bool = False
     dbus_allowed: bool = False
@@ -249,8 +247,6 @@ class AppConfig:
     def from_dict(cls, data: Dict[str, Any]) -> "AppConfig":
         """Create from dictionary."""
         return cls(
-            buffer_minutes=data.get("buffer_minutes", 5),
-            buffer_size_mb=data.get("buffer_size_mb", 50),
             theme=data.get("theme", "default"),
             alternative_bg_mode=data.get("alternative_bg_mode", False),
             dbus_allowed=data.get("dbus_allowed", False),
@@ -263,8 +259,6 @@ class AppConfig:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
-            "buffer_minutes": self.buffer_minutes,
-            "buffer_size_mb": self.buffer_size_mb,
             "theme": self.theme,
             "alternative_bg_mode": self.alternative_bg_mode,
             "dbus_allowed": self.dbus_allowed,

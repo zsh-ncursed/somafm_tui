@@ -115,9 +115,6 @@ class MediaPlayer2PlayerInterface(ServiceInterface):
             self.player.is_playing = False
             self.player.is_paused = False
             self.player.current_channel = None
-            if self.player.buffer:
-                self.player.buffer.stop_buffering()
-                self.player.buffer.clear()
             self._playback_status = "Stopped"
             self._metadata = {}
             self._position = 0
