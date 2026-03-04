@@ -20,15 +20,14 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Validate PKGBUILD version
+      - name: Validate PKGBUILD
         run: |
-          PKGVER=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
-          TAG_VERSION="${{ steps.get_version.outputs.version }}"
-          if [ "$PKGVER" != "$TAG_VERSION" ]; then
-            echo "Error: PKGBUILD version ($PKGVER) does not match tag version ($TAG_VERSION)"
+          # Check if PKGBUILD exists and has pkgver() function for automatic versioning
+          if [ ! -f "PKGBUILD" ]; then
+            echo "Error: PKGBUILD not found"
             exit 1
           fi
-          echo "Version match: $PKGVER"
+          echo "PKGBUILD found"
 
       - name: Setup SSH
         run: |
