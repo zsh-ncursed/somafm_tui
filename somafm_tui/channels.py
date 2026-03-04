@@ -4,7 +4,9 @@ import json
 import logging
 import os
 import time
-from typing import Dict, List, Set, Optional
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Set, Optional
 
 from .models import Channel
 from .http_client import fetch_json
@@ -173,3 +175,101 @@ def update_channel_usage(channel_id: str, usage_file: str, valid_ids: Set[str]) 
     save_channel_usage(usage_file, usage)
 
     return usage
+
+
+# Track favorites functions
+
+
+@dataclass
+class FavoriteTrack:
+    """Favorite track data"""
+    artist: str
+    title: str
+    channel_id: str
+    channel_name: str
+    added_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "artist": self.artist,
+            "title": self.title,
+            "channel_id": self.channel_id,
+            "channel_name": self.channel_name,
+            "added_at": self.added_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FavoriteTrack":
+        """Create from dictionary."""
+        return cls(
+            artist=data.get("artist", "Unknown"),
+            title=data.get("title", "Unknown"),
+            channel_id=data.get("channel_id", ""),
+            channel_name=data.get("channel_name", ""),
+            added_at=data.get("added_at", ""),
+        )
+
+
+def load_favorite_tracks(tracks_file: str) -> List[FavoriteTrack]:
+    """Load favorite tracks list."""
+    if not os.path.exists(tracks_file):
+        return []
+
+    try:
+        with open(tracks_file, "r") as f:
+            data = json.load(f)
+            return [FavoriteTrack.from_dict(item) for item in data]
+    except (json.JSONDecodeError, IOError):
+        return []
+
+
+def save_favorite_tracks(tracks_file: str, tracks: List[FavoriteTrack]) -> None:
+    """Save favorite tracks list."""
+    try:
+        os.makedirs(os.path.dirname(tracks_file), exist_ok=True)
+        with open(tracks_file, "w") as f:
+            json.dump([track.to_dict() for track in tracks], f, indent=2)
+    except IOError as e:
+        logging.error(f"Error saving favorite tracks: {e}")
+
+
+def add_favorite_track(
+    tracks_file: str,
+    artist: str,
+    title: str,
+    channel_id: str,
+    channel_name: str,
+) -> List[FavoriteTrack]:
+    """Add a track to favorites."""
+    tracks = load_favorite_tracks(tracks_file)
+
+    # Check if track already exists
+    for track in tracks:
+        if (track.artist == artist and track.title == title and track.channel_id == channel_id):
+            logging.info(f"Track already in favorites: {artist} - {title}")
+            return tracks
+
+    new_track = FavoriteTrack(
+        artist=artist,
+        title=title,
+        channel_id=channel_id,
+        channel_name=channel_name,
+    )
+    tracks.insert(0, new_track)  # Add to beginning
+    save_favorite_tracks(tracks_file, tracks)
+    return tracks
+
+
+def is_track_favorite(
+    tracks_file: str,
+    artist: str,
+    title: str,
+    channel_id: str,
+) -> bool:
+    """Check if a track is in favorites."""
+    tracks = load_favorite_tracks(tracks_file)
+    for track in tracks:
+        if (track.artist == artist and track.title == title and track.channel_id == channel_id):
+            return True
+    return False

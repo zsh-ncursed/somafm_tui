@@ -34,6 +34,9 @@ from somafm_tui.channels import (
     save_channel_usage,
     clean_channel_usage,
     sort_channels_by_usage,
+    load_favorite_tracks,
+    add_favorite_track,
+    is_track_favorite,
 )
 from somafm_tui.ui import UIScreen
 from somafm_tui.timer import SleepTimer
@@ -46,6 +49,7 @@ CACHE_DIR = os.path.join(TEMP_DIR, "cache")
 CHANNEL_CACHE_FILE = os.path.join(CACHE_DIR, "channels.json")
 CHANNEL_USAGE_FILE = os.path.join(CONFIG_DIR, "channel_usage.json")
 CHANNEL_FAVORITES_FILE = os.path.join(CONFIG_DIR, "channel_favorites.json")
+TRACK_FAVORITES_FILE = os.path.join(CONFIG_DIR, "track_favorites.json")
 
 
 def ensure_directories() -> None:
@@ -644,18 +648,44 @@ class SomaFMPlayer:
                 self._decrease_volume()
 
     def _toggle_favorite(self) -> None:
-        """Toggle channel favorite status"""
+        """Toggle favorite status (track if playing, channel if not)"""
         if not self.channels:
             return
 
-        channel_id = self.channels[self.current_index].id
-        favorites = toggle_favorite(channel_id, CHANNEL_FAVORITES_FILE)
+        if self.is_playing and self.current_channel and self.current_metadata:
+            # Add current track to favorites
+            artist = self.current_metadata.artist
+            title = self.current_metadata.title
+            
+            # Don't add if metadata is not available
+            if artist in ("Loading...", "Unknown") or title in ("Loading...", "Unknown"):
+                if self.stdscr:
+                    self.ui_screen.show_notification(self.stdscr, "No track metadata available")
+                return
+            
+            add_favorite_track(
+                TRACK_FAVORITES_FILE,
+                artist=artist,
+                title=title,
+                channel_id=self.current_channel.id,
+                channel_name=self.current_channel.title,
+            )
+            
+            if self.stdscr:
+                self.ui_screen.show_notification(
+                    self.stdscr, 
+                    f"Added to favorites: {artist} - {title}"
+                )
+        else:
+            # Toggle channel favorite
+            channel_id = self.channels[self.current_index].id
+            favorites = toggle_favorite(channel_id, CHANNEL_FAVORITES_FILE)
 
-        is_favorite = channel_id in favorites
-        message = "Added to favorites" if is_favorite else "Removed from favorites"
+            is_favorite = channel_id in favorites
+            message = "Added to favorites" if is_favorite else "Removed from favorites"
 
-        if self.stdscr:
-            self.ui_screen.show_notification(self.stdscr, message)
+            if self.stdscr:
+                self.ui_screen.show_notification(self.stdscr, message)
 
     def _cycle_bitrate(self) -> None:
         """Cycle to next available bitrate"""

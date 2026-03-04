@@ -44,5 +44,8 @@ Thumbs.db
 *.log
 tests/
 
+# Documentation (auto-generated)
+docs/
+
 .qwen/
 gha-creds-*.json
