@@ -11,9 +11,14 @@ source=("git+https://github.com/zsh-ncursed/somafm_tui.git")
 sha256sums=('SKIP')
 
 pkgver() {
-    # Get version from latest git tag
-    cd "$pkgname"
-    git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0"
+    # Use environment variable from GitHub Actions if available
+    if [ -n "$GITHUB_REF_NAME" ]; then
+        echo "$GITHUB_REF_NAME" | sed 's/^v//'
+    else
+        # Fallback: try git describe (works in local builds with tags)
+        cd "$pkgname"
+        git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0"
+    fi
 }
 
 prepare() {
