@@ -10,12 +10,16 @@ makedepends=('git')
 source=("git+https://github.com/zsh-ncursed/somafm_tui.git")
 sha256sums=('SKIP')
 
+# pkgver() is called by makepkg during build to determine version
+# In CI (GitHub Actions), GITHUB_REF_NAME is set to the tag name (e.g., "v0.4.9")
+# In local builds, git describe is used to get version from tags
 pkgver() {
-    # Use environment variable from GitHub Actions if available
     if [ -n "$GITHUB_REF_NAME" ]; then
         echo "$GITHUB_REF_NAME" | sed 's/^v//'
+    elif [ -n "$VERSION" ]; then
+        # Fallback for AUR action which may pass VERSION
+        echo "$VERSION" | sed 's/^v//'
     else
-        # Fallback: try git describe (works in local builds with tags)
         cd "$pkgname"
         git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0"
     fi

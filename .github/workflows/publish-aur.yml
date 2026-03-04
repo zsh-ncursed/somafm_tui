@@ -22,12 +22,14 @@ jobs:
 
       - name: Validate PKGBUILD
         run: |
-          # Check if PKGBUILD exists and has pkgver() function for automatic versioning
+          # Check if PKGBUILD exists
           if [ ! -f "PKGBUILD" ]; then
             echo "Error: PKGBUILD not found"
             exit 1
           fi
           echo "PKGBUILD found"
+          # Inject version into PKGBUILD for AUR action compatibility
+          echo "pkgver=${{ steps.get_version.outputs.version }}" >> PKGBUILD
 
       - name: Setup SSH
         run: |
@@ -52,3 +54,6 @@ jobs:
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to version ${{ steps.get_version.outputs.version }}"
           ssh_keyscan_types: rsa,ed25519
+          updpkgsums: true
+          test: true
+          test_flags: --clean --cleanbuild --nodeps --verifysource
