@@ -7,13 +7,13 @@ url="https://github.com/zsh-ncursed/somafm_tui"
 license=('MIT')
 depends=('python' 'python-requests' 'python-mpv' 'python-dbus-next')
 makedepends=('git')
-source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v${pkgver}")
+source=("git+https://github.com/zsh-ncursed/somafm_tui.git")
 sha256sums=('SKIP')
 
 pkgver() {
+    # Get version from latest git tag
     cd "$pkgname"
-    # Get latest tag and remove 'v' prefix
-    git describe --tags --abbrev=0 | sed 's/^v//'
+    git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0"
 }
 
 prepare() {
