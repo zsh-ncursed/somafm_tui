@@ -1,6 +1,6 @@
 # Maintainer: zsh-ncursed <zsh.ncursed@gmail.com>
 pkgname=somafm_tui
-pkgver=0.4.6
+pkgver=0.4.7
 pkgrel=1
 pkgdesc="Terminal user interface for SomaFM internet radio"
 arch=('any')
@@ -8,7 +8,7 @@ url="https://github.com/zsh-ncursed/somafm_tui"
 license=('MIT')
 depends=('python' 'python-requests' 'python-mpv' 'python-dbus-next')
 makedepends=('git')
-source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.4.6")
+source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.4.7")
 sha256sums=('SKIP')
 
 prepare() {
