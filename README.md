@@ -159,8 +159,7 @@ somafm-tui
 
 | Key | Action |
 |-----|--------|
-| `Space` or `p` | Toggle play/pause |
-| `m` | Mute/unmute audio |
+| `Space` | Toggle play/pause |
 | `h` | Stop playback |
 | `r` | Cycle bitrate (if available) |
 | `s` | Set sleep timer |
