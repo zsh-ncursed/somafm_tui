@@ -1,0 +1,71 @@
+name: Sync PyPI Version
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to set (e.g., 0.5.3)'
+        required: true
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get version from release tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Version from tag: $VERSION"
+          else
+            VERSION=${{ github.event.inputs.version }}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Version from input: $VERSION"
+          fi
+
+      - name: Update pyproject.toml version
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          # Remove leading 'v' if present
+          VERSION=${VERSION#v}
+          echo "Updating pyproject.toml to version $VERSION"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          
+          # Verify the change
+          echo "New version in pyproject.toml:"
+          grep "^version" pyproject.toml
+
+      - name: Commit and push if changed
+        id: commit_push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            VERSION="${{ steps.get_version.outputs.version }}"
+            git commit -m "chore: update pyproject.toml version to $VERSION [skip ci]"
+            git push
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for PyPI publish
+        if: steps.commit_push.outputs.changed == 'true'
+        run: |
+          echo "Version updated to ${{ steps.get_version.outputs.version }}"
+          echo "PyPI publish will trigger on the pyproject.toml change"
