@@ -15,6 +15,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.4] - 2026-03-07
+
+### Fixed
+- **GitHub Release workflow** — Fixed duplicate file upload issue in sigstore action
+
+### Technical
+- Finalized release process with proper versioning
+
+---
+
+## [0.5.3] - 2026-03-07
+
+### Fixed
+- **PyPI workflow trigger** — Changed to only publish on release (not on tag push) to prevent duplicate uploads
+
+### Technical
+- Updated .github/workflows/publish.yml to remove push: tags trigger
+- AUR package still triggers on both push: tags and release
+
+---
+
+## [0.5.2] - 2026-03-07
+
+### Fixed
+- **Version bump** — Updated pyproject.toml version to 0.5.2 for PyPI release
+
+---
+
 ## [0.5.1] - 2026-03-07
 
 ### Fixed
@@ -167,6 +195,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Release Date | Key Features |
 |---------|-------------|--------------|
+| 0.5.4 | 2026-03-07 | GitHub Release workflow fix |
+| 0.5.3 | 2026-03-07 | PyPI workflow trigger fix |
+| 0.5.2 | 2026-03-07 | Version bump for PyPI |
+| 0.5.1 | 2026-03-07 | Resource paths fix (AUR & PyPI) |
+| 0.5.0 | 2026-03-06 | CLI arguments, async HTTP, smart UI redraw |
 | 0.4.4 | 2026-03-03 | Documentation update, AUR instructions |
 | 0.4.0 | 2024-03-01 | Sleep timer, bitrate cycling, MPRIS, themes |
 | 0.3.0 | 2024-01-15 | Favorites, metadata, volume control |
