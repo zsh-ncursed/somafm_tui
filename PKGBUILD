@@ -7,7 +7,7 @@ url="https://github.com/zsh-ncursed/somafm_tui"
 license=('MIT')
 depends=('python' 'python-requests' 'python-mpv' 'python-dbus-next')
 makedepends=('git')
-source=("git+https://github.com/zsh-ncursed/somafm_tui.git")
+source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=$GITHUB_REF_NAME")
 sha256sums=('SKIP')
 
 # pkgver() is called by makepkg during build to determine version
