@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-**SomaFM TUI Player** is a modern terminal application for listening to [SomaFM](https://somafm.com/) — the legendary internet radio with over 30 unique channels.
+**SomaFM TUI Player** is a modern terminal application for listening to [SomaFM](https://somafm.com/) — the legendary internet radio with over 40 unique channels.
 
 The app combines a minimalist interface, rich features, and low resource consumption, making it ideal for terminal-based workflows.
 
