@@ -49,3 +49,6 @@ AUR = "https://aur.archlinux.org/packages/somafm_tui"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["somafm_tui*"]
+
+[tool.setuptools.package-data]
+somafm_tui = ["themes.json"]

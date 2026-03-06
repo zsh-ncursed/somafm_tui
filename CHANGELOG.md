@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1] - 2026-03-07
+
+### Fixed
+- **AUR package resource paths** — Fixed `themes.json` installation path in PKGBUILD:
+  - Changed from `/usr/lib/somafm_tui/themes.json` to `/usr/lib/somafm_tui/somafm_tui/themes.json`
+  - Themes now work correctly in system-installed package
+- **PyPI package data** — Added `themes.json` to `pyproject.toml` package-data for proper inclusion in wheel
+
+### Technical
+- Updated `PKGBUILD` to install resource files to correct directory
+- Updated `pyproject.toml` with `[tool.setuptools.package-data]`
+- Added documentation: `docs/solutions/packaging/resource-paths.md`
+- Added critical patterns documentation: `docs/solutions/patterns/critical-patterns.md`
+
+---
+
 ## [0.5.0] - 2026-03-06
 
 ### Added

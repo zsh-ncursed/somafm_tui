@@ -64,7 +64,7 @@ package() {
     install -Dm644 "$srcdir/$pkgname/somafm_tui/player.py" "$pkgdir/usr/lib/somafm_tui/player.py"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/config.py" "$pkgdir/usr/lib/somafm_tui/config.py"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/themes.py" "$pkgdir/usr/lib/somafm_tui/themes.py"
-    install -Dm644 "$srcdir/$pkgname/themes.json" "$pkgdir/usr/lib/somafm_tui/themes.json"
+    install -Dm644 "$srcdir/$pkgname/themes.json" "$pkgdir/usr/lib/somafm_tui/somafm_tui/themes.json"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/models.py" "$pkgdir/usr/lib/somafm_tui/models.py"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/channels.py" "$pkgdir/usr/lib/somafm_tui/channels.py"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/mpris_service.py" "$pkgdir/usr/lib/somafm_tui/mpris_service.py"
