@@ -110,7 +110,7 @@ Navigation (interactive mode):
     utility_group.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.4.8",
+        version="%(prog)s 0.5.0",
     )
     utility_group.add_argument(
         "--verbose",

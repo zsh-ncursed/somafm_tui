@@ -49,3 +49,6 @@ docs/
 
 .qwen/
 gha-creds-*.json
+
+# PyPI credentials
+.pypirc
