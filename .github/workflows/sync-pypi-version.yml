@@ -61,7 +61,7 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             VERSION="${{ steps.get_version.outputs.version }}"
-            git commit -m "chore: update pyproject.toml version to $VERSION [skip ci]"
+            git commit -m "chore: update pyproject.toml version to $VERSION"
             git push
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
