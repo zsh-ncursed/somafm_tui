@@ -1,0 +1,4 @@
+include somafm_tui/themes.json
+include themes.json
+include LICENSE
+include README.md
