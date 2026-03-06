@@ -46,7 +46,7 @@ def get_favorite_icon() -> str:
 
 
 class UIScreen:
-    """Base UI screen class"""
+    """Base UI screen class with smart redraw optimization."""
 
     def __init__(self):
         self.current_metadata = TrackMetadata()
@@ -57,6 +57,37 @@ class UIScreen:
         self.volume_display: Optional[int] = None
         self.volume_display_time: float = 0
         self.volume_display_was_visible: bool = False
+        
+        # Smart redraw optimization - cache previous state
+        self._prev_channels_hash: int = 0
+        self._prev_selected_index: int = -1
+        self._prev_scroll_offset: int = -1
+        self._prev_favorites_hash: int = 0
+        self._prev_current_channel_id: Optional[str] = None
+        self._prev_is_playing: bool = False
+        self._prev_metadata_hash: int = 0
+        self._prev_search_query: str = ""
+        self._prev_show_help: bool = False
+        self._prev_bitrate: str = ""
+        self._last_full_redraw: float = 0
+        self._full_redraw_interval: float = 2.0  # Force full redraw every 2 seconds
+
+    def invalidate_cache(self) -> None:
+        """Invalidate redraw cache to force full redraw.
+        
+        Call this when theme changes or screen is cleared.
+        """
+        self._prev_channels_hash = 0
+        self._prev_selected_index = -1
+        self._prev_scroll_offset = -1
+        self._prev_favorites_hash = 0
+        self._prev_current_channel_id = None
+        self._prev_is_playing = False
+        self._prev_metadata_hash = 0
+        self._prev_search_query = ""
+        self._prev_show_help = False
+        self._prev_bitrate = ""
+        self._last_full_redraw = 0
 
     def display(
         self,
@@ -74,18 +105,100 @@ class UIScreen:
         show_help: bool = False,
         current_bitrate: str = "",
     ) -> None:
-        """Display combined interface"""
+        """Display combined interface with smart redraw optimization.
+        
+        Only redraws changed portions of the screen to improve performance.
+        Full redraw is performed when:
+        - Help overlay is shown
+        - Search mode changes
+        - Channels list changes
+        - Every _full_redraw_interval seconds to prevent screen burn-in
+        """
+        import hashlib
+        import time
+        
         max_y, max_x = stdscr.getmaxyx()
+        current_time = time.time()
 
-        # Show help overlay if enabled
+        # Show help overlay if enabled (always full redraw)
         if show_help:
             self._display_help(stdscr, max_y, max_x)
             stdscr.refresh()
             return
 
+        # Calculate hashes for change detection
+        channels_str = "|".join(f"{ch.id}:{ch.title}" for ch in channels)
+        channels_hash = hash(channels_str)
+        favorites_hash = hash(frozenset(channel_favorites))
+        metadata_hash = hash(f"{self.current_metadata.artist}:{self.current_metadata.title}")
+        
+        # Detect what changed
+        channels_changed = channels_hash != self._prev_channels_hash
+        selection_changed = selected_index != self._prev_selected_index
+        scroll_changed = scroll_offset != self._prev_scroll_offset
+        favorites_changed = favorites_hash != self._prev_favorites_hash
+        playback_changed = (
+            current_channel != self._prev_current_channel_id or
+            is_playing != self._prev_is_playing or
+            current_bitrate != self._prev_bitrate
+        )
+        metadata_changed = metadata_hash != self._prev_metadata_hash
+        search_changed = search_query != self._prev_search_query
+        help_changed = show_help != self._prev_show_help
+        force_redraw = (current_time - self._last_full_redraw) > self._full_redraw_interval
+        
+        # Determine if we need full redraw
+        needs_full_redraw = force_redraw or channels_changed or search_changed or help_changed
+        
         # Adaptive width for channels panel (25-40 chars, max 1/3 of screen)
         split_x = min(max(25, max_x // 3), 40)
+        panel_height = max_y - 2
 
+        if needs_full_redraw:
+            # Full redraw - clear and redraw everything
+            self._full_redraw(
+                stdscr, channels, selected_index, scroll_offset, channel_favorites,
+                current_channel, player, is_playing, current_bitrate,
+                split_x, panel_height, max_y, max_x, is_searching, search_query
+            )
+            self._last_full_redraw = current_time
+        else:
+            # Partial redraw - only update changed elements
+            self._partial_redraw(
+                stdscr, channels, selected_index, scroll_offset, channel_favorites,
+                current_channel, player, is_playing, current_bitrate,
+                split_x, panel_height, max_y, max_x, is_searching, search_query,
+                selection_changed, scroll_changed, favorites_changed,
+                playback_changed, metadata_changed
+            )
+
+        # Display volume indicator (always)
+        self._handle_volume_display(stdscr)
+        
+        # Show sleep timer countdown if active (always update)
+        if self.volume_display is not None or True:  # Always refresh sleep timer
+            stdscr.refresh()
+
+        # Update cache
+        self._prev_channels_hash = channels_hash
+        self._prev_selected_index = selected_index
+        self._prev_scroll_offset = scroll_offset
+        self._prev_favorites_hash = favorites_hash
+        self._prev_current_channel_id = current_channel.id if current_channel else None
+        self._prev_is_playing = is_playing
+        self._prev_metadata_hash = metadata_hash
+        self._prev_search_query = search_query
+        self._prev_show_help = show_help
+        self._prev_bitrate = current_bitrate
+
+    def _full_redraw(
+        self, stdscr: curses.window, channels: List[Channel],
+        selected_index: int, scroll_offset: int, channel_favorites: Set[str],
+        current_channel: Optional[Channel], player: Any, is_playing: bool,
+        current_bitrate: str, split_x: int, panel_height: int,
+        max_y: int, max_x: int, is_searching: bool, search_query: str
+    ) -> None:
+        """Perform full screen redraw."""
         # Clear screen and fill background
         stdscr.clear()
         stdscr.bkgd(" ", curses.color_pair(1))
@@ -108,44 +221,126 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Calculate panel height
-        panel_height = max_y - 2
-
         # Left panel: Channel list
         self._display_channels_panel(
-            stdscr,
-            channels,
-            selected_index,
-            scroll_offset,
-            channel_favorites,
-            0,
-            0,
-            split_x,
-            panel_height,
-            is_searching,
-            search_query,
+            stdscr, channels, selected_index, scroll_offset, channel_favorites,
+            0, 0, split_x, panel_height, is_searching, search_query,
         )
 
         # Right panel: Playback info
         self._display_playback_panel(
-            stdscr,
-            split_x + 1,
-            0,
-            max_x - split_x - 1,
-            panel_height,
-            current_channel,
-            player,
-            is_playing,
-            current_bitrate,
+            stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
+            current_channel, player, is_playing, current_bitrate,
         )
 
         # Display instructions at bottom
         self._display_instructions(stdscr, max_y, max_x)
 
-        # Display volume indicator
-        self._handle_volume_display(stdscr)
-
+    def _partial_redraw(
+        self, stdscr: curses.window, channels: List[Channel],
+        selected_index: int, scroll_offset: int, channel_favorites: Set[str],
+        current_channel: Optional[Channel], player: Any, is_playing: bool,
+        current_bitrate: str, split_x: int, panel_height: int,
+        max_y: int, max_x: int, is_searching: bool, search_query: str,
+        selection_changed: bool, scroll_changed: bool, favorites_changed: bool,
+        playback_changed: bool, metadata_changed: bool
+    ) -> None:
+        """Perform partial redraw - only update changed elements.
+        
+        Note: This does NOT update background color. For theme changes,
+        use _full_redraw() instead.
+        """
+        
+        # Update channel list if selection, scroll, or favorites changed
+        if selection_changed or scroll_changed or favorites_changed:
+            self._redraw_channel_list(
+                stdscr, channels, selected_index, scroll_offset, channel_favorites,
+                split_x, panel_height,
+            )
+        
+        # Update playback info if playback state or metadata changed
+        if playback_changed or metadata_changed:
+            self._redraw_playback_info(
+                stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
+                current_channel, player, is_playing, current_bitrate,
+            )
+        
+        # Update search prompt if searching
+        if is_searching:
+            self._redraw_search_prompt(stdscr, search_query, split_x, panel_height)
+        
+        # Refresh screen to show changes
         stdscr.refresh()
+
+    def _redraw_channel_list(
+        self, stdscr: curses.window, channels: List[Channel],
+        selected_index: int, scroll_offset: int, channel_favorites: Set[str],
+        split_x: int, panel_height: int
+    ) -> None:
+        """Redraw only the channel list portion."""
+        visible_channels = panel_height - 3
+        
+        for i, channel in enumerate(channels[scroll_offset:scroll_offset + visible_channels]):
+            display_y = i
+            if display_y >= panel_height - 1:
+                break
+
+            # Prepare channel title
+            fav_icon = f"{get_favorite_icon()} " if channel.id in channel_favorites else "  "
+            title = channel.title
+            max_title_len = split_x - 6
+            if len(title) > max_title_len:
+                title = title[:max_title_len - 3] + "..."
+            display_title = f"{fav_icon}{title}"
+
+            try:
+                if i + scroll_offset == selected_index:
+                    stdscr.addstr(
+                        display_y + 1, 0, f"> {display_title}"[:split_x - 1],
+                        curses.color_pair(2) | curses.A_REVERSE
+                    )
+                else:
+                    # Only redraw if this line was previously selected
+                    stdscr.addstr(display_y + 1, 0, f"  {display_title}"[:split_x - 1], curses.color_pair(1))
+            except curses.error:
+                continue
+
+    def _redraw_playback_info(
+        self, stdscr: curses.window, start_x: int, start_y: int,
+        width: int, height: int, current_channel: Optional[Channel],
+        player: Any, is_playing: bool, current_bitrate: str = ""
+    ) -> None:
+        """Redraw only the playback info portion."""
+        max_y, max_x = stdscr.getmaxyx()
+        available_width = min(width, max_x - start_x)
+
+        # Clear playback area
+        for y in range(start_y, min(start_y + 6, height - 1, max_y)):
+            try:
+                stdscr.addstr(y, start_x, " " * available_width, curses.color_pair(1))
+            except curses.error:
+                pass
+
+        # Redraw playback info
+        self._display_playback_panel(
+            stdscr, start_x, start_y, width, height,
+            current_channel, player, is_playing, current_bitrate,
+        )
+
+    def _redraw_search_prompt(
+        self, stdscr: curses.window, search_query: str,
+        split_x: int, panel_height: int
+    ) -> None:
+        """Redraw search prompt."""
+        prompt = f"Search: {search_query}"
+        prompt_y = panel_height - 2
+        try:
+            stdscr.addstr(prompt_y, 0, " " * (split_x - 1), curses.color_pair(1))
+            stdscr.addstr(prompt_y, 0, prompt[:split_x - 1], curses.color_pair(2) | curses.A_BOLD)
+            curses.curs_set(1)
+            stdscr.move(prompt_y, len(prompt))
+        except curses.error:
+            curses.curs_set(0)
 
     def _display_channels_panel(
         self,
@@ -432,7 +627,7 @@ class UIScreen:
         self.volume_display_time = time.time()
 
     def show_notification(self, stdscr: curses.window, message: str, timeout: float = 1.5) -> None:
-        """Show notification"""
+        """Show notification with automatic screen refresh after closing."""
         max_y, max_x = stdscr.getmaxyx()
         win_width = min(len(message) + 4, max_x)
         win_height = 3
@@ -448,6 +643,9 @@ class UIScreen:
             curses.napms(int(timeout * 1000))
             notif_win.clear()
             notif_win.refresh()
+            
+            # Перерисовываем основной экран после закрытия уведомления
+            stdscr.refresh()
         except curses.error:
             pass
 
@@ -574,6 +772,7 @@ class UIScreen:
             ("  ↑/k  - Move up", "normal"),
             ("  ↓/j  - Move down", "normal"),
             ("  Enter/l - Play selected channel", "normal"),
+            ("  ?     - Toggle this help", "normal"),
             ("", ""),
             ("Playback", "section"),
             ("  Space - Pause/Resume", "normal"),
@@ -594,7 +793,6 @@ class UIScreen:
             ("  t     - Cycle theme", "normal"),
             ("", ""),
             ("Other", "section"),
-            ("  ?     - Toggle this help", "normal"),
             ("  q     - Quit", "normal"),
             ("  ESC   - Close search/help/timer", "normal"),
         ]

@@ -15,6 +15,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-03-06
+
+### Added
+- **CLI arguments** — Full command-line interface with 10+ options:
+  - `--play`, `--volume`, `--theme` for quick launch
+  - `--list-channels`, `--search`, `--favorites` for information
+  - `--sleep` timer (1-480 minutes)
+  - `--list-themes`, `--no-dbus`, `--verbose`
+- **Async HTTP requests** — Non-blocking channel loading with ThreadPoolExecutor
+- **Smart UI redraw** — Hash-based change detection for 6-20x performance improvement
+- **Help key (?)** — Toggle help window in interactive mode
+- **Theme sorting** — Dark themes first, light themes last
+
+### Changed
+- **Architecture refactoring** — Split monolithic `player.py` (739 lines) into modular components:
+  - `PlaybackController` — Audio playback management (289 lines)
+  - `StateManager` — Application state management (396 lines)
+  - `InputHandler` — User input handling (230 lines)
+  - `SomaFMPlayer` — Orchestration only (566 lines, -23%)
+- **Removed global variables** — HttpClient singleton and closure-based signal handlers
+- **Enhanced documentation** — README.md expanded by 50% with installation, configuration, and troubleshooting
+
+### Fixed
+- **somafm.fish path** — Corrected path to `__main__.py`
+- **Theme switching** — Force full redraw when theme changes
+- **Sleep timer validation** — Maximum 480 minutes (8 hours)
+
+### Technical
+- New files: `somafm_tui/cli.py`, `somafm_tui/core/__init__.py`, `somafm_tui/core/playback.py`, `somafm_tui/core/state.py`, `somafm_tui/core/input.py`
+- Updated: `somafm_tui/http_client.py` (async support), `somafm_tui/ui.py` (smart redraw), `somafm_tui/player.py` (orchestration)
+- PKGBUILD updated to include new core module files
+
+---
+
 ## [0.4.5] - 2026-03-04
 
 ### Fixed

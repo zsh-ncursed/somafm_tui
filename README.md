@@ -75,6 +75,22 @@ pip install -r requirements.txt
 python -m somafm_tui
 ```
 
+### Installation via pip
+
+Install directly from PyPI (when available):
+
+```bash
+pip install somafm-tui
+```
+
+Or install from the repository:
+
+```bash
+pip install git+https://github.com/zsh-ncursed/somafm_tui.git
+```
+
+After pip installation, the `somafm-tui` command will be available in your PATH.
+
 ### Shell Scripts
 
 Quick launch using provided scripts:
@@ -118,6 +134,13 @@ pip install requests mpv dbus-next
 
 ## ⌨️ Controls
 
+### Interactive Mode
+
+Launch the application:
+```bash
+somafm-tui
+```
+
 ### Navigation
 
 | Key | Action |
@@ -126,6 +149,7 @@ pip install requests mpv dbus-next
 | `Enter` or `l` | Play selected channel |
 | `PgUp` / `PgDn` or `v` / `b` | Increase/decrease volume |
 | `/` | Search channels |
+| `?` | Toggle help window |
 | `Esc` | Exit search / close help |
 | `f` | Toggle favorite status |
 | `t` | Cycle through color themes |
@@ -140,6 +164,39 @@ pip install requests mpv dbus-next
 | `h` | Stop playback |
 | `r` | Cycle bitrate (if available) |
 | `s` | Set sleep timer |
+
+### Command-Line Interface
+
+The application supports various CLI arguments for automation and quick actions:
+
+```bash
+# Show help
+somafm-tui --help
+
+# List all available channels
+somafm-tui --list-channels
+
+# Search for channels
+somafm-tui --search "drone"
+
+# Show favorite channels
+somafm-tui --favorites
+
+# List available themes
+somafm-tui --list-themes
+
+# Play specific channel with custom settings
+somafm-tui --play dronezone --volume 70 --theme dracula
+
+# Set sleep timer from command line
+somafm-tui --sleep 30
+
+# Disable MPRIS integration
+somafm-tui --no-dbus
+
+# Combine multiple options
+somafm-tui -p groovesalad -v 50 -t monochrome -s 60
+```
 
 ### MPRIS (Media Keys)
 
@@ -177,13 +234,50 @@ dbus_cache_metadata_artworks = true
 volume = 100
 ```
 
+### Configuration Examples
+
+**Basic setup with custom volume:**
+```ini
+[somafm]
+theme = dracula
+volume = 80
+dbus_allowed = false
+```
+
+**Full MPRIS integration (Linux desktop):**
+```ini
+[somafm]
+theme = github-dark
+dbus_allowed = true
+dbus_send_metadata = true
+dbus_send_metadata_artworks = true
+dbus_cache_metadata_artworks = true
+volume = 70
+```
+
+**Minimal configuration (no D-Bus, default theme):**
+```ini
+[somafm]
+theme = default
+dbus_allowed = false
+volume = 100
+```
+
 ### Available Themes
+
+Run `somafm-tui --list-themes` to see all available themes:
 
 | Theme | Description |
 |-------|-------------|
 | `default` | Default Dark — Classic dark theme |
-| `monochrome` | Monochrome — Black and white theme |
-| `monochrome-dark` | Monochrome Dark — Alternative monochrome |
+| `dracula` | Dracula — Popular dark theme |
+| `github-dark` | GitHub Dark — GitHub's dark theme |
+| `gruvbox` | Gruvbox — Retro terminal theme |
+| `monokai` | Monokai — Vibrant dark theme |
+| `nord` | Nord — Arctic blue theme |
+| `one-dark` | One Dark — Atom's dark theme |
+| `solarized-dark` | Solarized Dark — Balanced contrast |
+| `tokyo-night` | Tokyo Night — Deep blue theme |
 | *and more* | See `themes.json` for full list |
 
 ### Enabling MPRIS
@@ -243,6 +337,9 @@ sudo pacman -S mpv
 
 # Install (Ubuntu/Debian)
 sudo apt-get install mpv
+
+# Install (Fedora)
+sudo dnf install mpv
 ```
 
 ### Error: "Failed to fetch channels"
@@ -250,13 +347,56 @@ sudo apt-get install mpv
 Check your internet connection and SomaFM API availability:
 
 ```bash
+# Test API connectivity
 curl https://api.somafm.com/channels.json
+
+# Check DNS resolution
+ping api.somafm.com
+
+# If using a firewall, ensure outbound HTTPS (port 443) is allowed
 ```
+
+**Solutions:**
+1. Check your internet connection
+2. Verify SomaFM API is accessible: `curl -I https://api.somafm.com/channels.json`
+3. If behind a proxy, set environment variables:
+   ```bash
+   export HTTP_PROXY=http://proxy:port
+   export HTTPS_PROXY=https://proxy:port
+   ```
+4. Clear channel cache and retry:
+   ```bash
+   rm -rf /tmp/.somafmtmp/cache/channels.json
+   somafm-tui
+   ```
+
+### Error: "No channel playing" or playback issues
+
+1. **Check stream URL availability:**
+   ```bash
+   # Test stream connectivity
+   mpv --really-verbose "https://ice1.somafm.com/dronezone-128-mp3"
+   ```
+
+2. **Reset configuration:**
+   ```bash
+   rm ~/.somafm_tui/somafm.cfg
+   somafm-tui
+   ```
+
+3. **Check audio output:**
+   - Ensure system volume is not muted
+   - Verify audio device is selected correctly in MPV
 
 ### Emojis Display Incorrectly
 
 The app automatically uses ASCII symbols in terminals without Unicode support. To force ASCII, ensure `TERM` is set correctly:
 
+```bash
+export TERM=xterm-256color
+```
+
+Add to your shell configuration (`~/.bashrc` or `~/.zshrc`):
 ```bash
 export TERM=xterm-256color
 ```
@@ -268,7 +408,60 @@ export TERM=xterm-256color
    ```bash
    pip show dbus-next
    ```
-3. Restart the application
+3. Check D-Bus service is running:
+   ```bash
+   systemctl --user status dbus
+   ```
+4. Verify app appears in media controllers:
+   ```bash
+   playerctl --list-all
+   ```
+5. Restart the application after configuration changes
+
+### Sleep Timer Not Working
+
+1. Maximum sleep timer is 480 minutes (8 hours)
+2. Check if timer is active: look for `⏱ MM:SS` in bottom right corner
+3. Cancel and re-set timer if needed:
+   - Press `s` to open sleep overlay
+   - Enter minutes (1-480)
+   - Press Enter to confirm
+
+### High CPU Usage
+
+1. Disable MPRIS if not needed:
+   ```ini
+   dbus_allowed = false
+   ```
+
+2. Reduce cache update frequency (if applicable)
+
+3. Check for background processes:
+   ```bash
+   ps aux | grep somafm
+   ```
+
+### Logs and Debugging
+
+Enable verbose logging:
+
+```bash
+somafm-tui --verbose
+```
+
+View logs:
+```bash
+# Real-time log viewing
+tail -f /tmp/.somafmtmp/somafm.log
+
+# Last 50 lines
+tail -n 50 /tmp/.somafmtmp/somafm.log
+```
+
+**Common log messages:**
+- `Using cached channels` — Cache is working correctly
+- `Timeout fetching` — Network issues, retrying automatically
+- `MPRIS service disabled` — D-Bus integration is off (expected if `dbus_allowed = false`)
 
 ---
 

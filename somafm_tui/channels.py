@@ -4,12 +4,13 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import Future
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Set, Optional
+from typing import Any, Dict, List, Set, Optional, Callable
 
 from .models import Channel
-from .http_client import fetch_json
+from .http_client import fetch_json, fetch_json_async
 
 API_URL = "https://api.somafm.com/channels.json"
 DEFAULT_TIMEOUT = 10  # seconds
@@ -66,6 +67,55 @@ def fetch_channels(
 
     channels_data = data.get("channels", [])
     return [Channel.from_api_response(ch) for ch in channels_data]
+
+
+def fetch_channels_async(
+    timeout: int = DEFAULT_TIMEOUT,
+    cache_file: Optional[str] = None,
+    cache_max_age: int = CACHE_MAX_AGE,
+    callback: Optional[Callable[[Optional[List[Channel]]], None]] = None,
+) -> Future:
+    """
+    Fetch channels asynchronously from SomaFM API.
+    Uses caching to reduce API load.
+    Non-blocking: returns immediately with a Future.
+    
+    Args:
+        timeout: Request timeout in seconds
+        cache_file: Path to cache file
+        cache_max_age: Maximum age of cache in seconds
+        callback: Optional callback function to call with result
+        
+    Returns:
+        Future object that will contain the list of channels
+        
+    Example:
+        future = fetch_channels_async(callback=on_channels_loaded)
+        # UI remains responsive while fetching...
+        channels = future.result()  # Blocks until complete
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    
+    # Use a temporary executor for this task
+    executor = ThreadPoolExecutor(max_workers=1)
+    
+    def _fetch():
+        try:
+            channels = fetch_channels(
+                timeout=timeout,
+                cache_file=cache_file,
+                cache_max_age=cache_max_age,
+            )
+            if callback:
+                callback(channels)
+            return channels
+        except Exception as e:
+            logging.error(f"Async fetch_channels failed: {e}")
+            if callback:
+                callback(None)
+            return None
+    
+    return executor.submit(_fetch)
 
 
 def load_channel_usage(usage_file: str) -> Dict[str, int]:

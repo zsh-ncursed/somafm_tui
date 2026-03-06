@@ -49,17 +49,60 @@ def _get_color_id(hex_color: str) -> int:
     return color_id
 
 
+def load_themes_raw() -> Dict[str, Dict[str, Any]]:
+    """Load themes from JSON file without curses color initialization.
+    
+    This is useful for CLI commands that run outside curses environment.
+    Returns themes with hex colors instead of color IDs.
+    """
+    try:
+        with open(THEMES_FILE, "r") as f:
+            raw_themes = json.load(f)
+        
+        # Return raw theme data without curses color IDs
+        themes = {}
+        for theme_id, theme_data in raw_themes.items():
+            themes[theme_id] = {
+                "name": theme_data.get("name", theme_id),
+                "bg_color": theme_data.get("bg_color", "#000000"),
+                "header": theme_data.get("header", "#ffffff"),
+                "selected": theme_data.get("selected", "#ffffff"),
+                "info": theme_data.get("info", "#ffffff"),
+                "metadata": theme_data.get("metadata", "#ffffff"),
+                "instructions": theme_data.get("instructions", "#ffffff"),
+                "favorite": theme_data.get("favorite", "#ffffff"),
+                "is_light": theme_data.get("is_light", False),
+            }
+        return themes
+    
+    except Exception as e:
+        logging.error(f"Failed to load themes: {e}")
+        # Return minimal default theme
+        return {
+            "default": {
+                "name": "Default Dark",
+                "bg_color": "#000000",
+                "header": "#00ffff",
+                "selected": "#00ff00",
+                "info": "#ffff00",
+                "metadata": "#ff00ff",
+                "instructions": "#0000ff",
+                "favorite": "#ff0000",
+                "is_light": False,
+            }
+        }
+
+
 def load_themes() -> Dict[str, Dict[str, Any]]:
-    """Load themes from JSON file"""
+    """Load themes from JSON file with curses color initialization"""
     global _theme_cache
 
     if _theme_cache is not None:
         return _theme_cache
 
     try:
-        with open(THEMES_FILE, "r") as f:
-            raw_themes = json.load(f)
-
+        raw_themes = load_themes_raw()
+        
         # Convert hex colors to curses color IDs
         themes = {}
         for theme_id, theme_data in raw_themes.items():
@@ -119,7 +162,8 @@ def get_color_themes() -> Dict[str, Dict[str, int]]:
 
 def get_theme_names() -> list:
     """Returns list of all theme names, sorted: dark themes first, light themes last"""
-    themes = load_themes()
+    # Use load_themes_raw() to work without curses initialization
+    themes = load_themes_raw()
     # Sort: dark themes (is_light=False) first, then light themes (is_light=True)
     return sorted(themes.keys(), key=lambda t: themes[t].get("is_light", False))
 
