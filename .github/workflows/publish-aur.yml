@@ -31,8 +31,11 @@ jobs:
             exit 1
           fi
           echo "PKGBUILD found"
-          # Inject version into PKGBUILD for AUR action compatibility
-          echo "pkgver=${{ steps.get_version.outputs.version }}" >> PKGBUILD
+          # Update pkgver in PKGBUILD for AUR action compatibility
+          VERSION="${{ steps.get_version.outputs.version }}"
+          sed -i "s/^pkgver=.*/pkgver=$VERSION/" PKGBUILD
+          echo "Updated pkgver to $VERSION"
+          grep "^pkgver" PKGBUILD
 
       - name: Setup SSH
         run: |
