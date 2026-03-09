@@ -198,11 +198,16 @@ class InputHandler:
 
     def _handle_special_key(self, key: Any) -> None:
         """Handle special keys (arrows, page keys, etc.).
-        
+
         Args:
             key: Special key code
         """
-        if key == curses.KEY_UP:
+        if key == curses.KEY_RESIZE:
+            # Handle terminal resize - invalidate UI cache to trigger full redraw
+            if hasattr(self.ui, 'invalidate_cache'):
+                self.ui.invalidate_cache()
+            return  # Let main loop handle redraw
+        elif key == curses.KEY_UP:
             self.state.navigate_up()
         elif key == curses.KEY_DOWN:
             self.state.navigate_down()

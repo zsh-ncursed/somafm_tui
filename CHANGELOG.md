@@ -15,6 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.10] - 2026-03-09
+
+### Fixed
+- **Curses rendering bugs** — Fixed text duplication/corruption issues during runtime:
+  - Added line clearing before writing in `_display_channels_panel()` to prevent text remnants
+  - Added line clearing in `_display_volume()` before rendering volume indicator
+  - Added line clearing in `display_sleep_timer()` before rendering countdown timer
+  - Fixed header line clearing in channels panel
+
+- **Terminal resize handling** — Added proper `curses.KEY_RESIZE` handling:
+  - Screen now clears and fully redraws when terminal is resized
+  - Prevents display corruption when window size changes
+
+### Technical
+- Modified `somafm_tui/ui.py`: Added `stdscr.addstr()` with space-clearing before all text output
+- Modified `somafm_tui/player.py`: Added KEY_RESIZE handling with `stdscr.clear()` in main loop
+- Modified `somafm_tui/core/input.py`: Added KEY_RESIZE handler in `_handle_special_key()`
+
+---
+
 ## [0.5.4] - 2026-03-07
 
 ### Fixed

@@ -279,7 +279,7 @@ class UIScreen:
     ) -> None:
         """Redraw only the channel list portion."""
         visible_channels = panel_height - 3
-        
+
         for i, channel in enumerate(channels[scroll_offset:scroll_offset + visible_channels]):
             display_y = i
             if display_y >= panel_height - 1:
@@ -294,13 +294,16 @@ class UIScreen:
             display_title = f"{fav_icon}{title}"
 
             try:
+                # Clear entire line first to prevent text remnants
+                line_width = split_x - 1
+                stdscr.addstr(display_y + 1, 0, " " * line_width, curses.color_pair(1))
+                
                 if i + scroll_offset == selected_index:
                     stdscr.addstr(
                         display_y + 1, 0, f"> {display_title}"[:split_x - 1],
                         curses.color_pair(2) | curses.A_REVERSE
                     )
                 else:
-                    # Only redraw if this line was previously selected
                     stdscr.addstr(display_y + 1, 0, f"  {display_title}"[:split_x - 1], curses.color_pair(1))
             except curses.error:
                 continue
@@ -362,6 +365,8 @@ class UIScreen:
             header = f"Channels ({len(channels)})"
             if len(header) > width - 2:
                 header = header[: width - 5] + "..."
+            # Clear header line first
+            stdscr.addstr(start_y, start_x, " " * (width - 1), curses.color_pair(1))
             stdscr.addstr(start_y, start_x, header, curses.color_pair(1) | curses.A_BOLD)
         except curses.error:
             pass
@@ -384,6 +389,10 @@ class UIScreen:
             display_title = f"{fav_icon}{title}"
 
             try:
+                # Clear line first to prevent text remnants
+                line_width = width - 1
+                stdscr.addstr(display_y, start_x, " " * line_width, curses.color_pair(1))
+
                 if i + scroll_offset == selected_index:
                     stdscr.addstr(
                         display_y, start_x, f"> {display_title}"[: width - 1], curses.color_pair(2) | curses.A_REVERSE
@@ -426,20 +435,25 @@ class UIScreen:
         if not current_channel or not is_playing:
             if available_width > 0:
                 try:
+                    # Clear lines before writing
+                    stdscr.addstr(start_y, start_x, " " * available_width, curses.color_pair(1))
                     text = "No channel playing"
                     if len(text) <= available_width:
                         stdscr.addstr(start_y, start_x, text, curses.color_pair(3))
 
-                    text2 = "Select a channel and press Enter to start"
-                    if len(text2) <= available_width and start_y + 2 < max_y:
-                        stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5) | curses.A_DIM)
+                    if start_y + 2 < max_y:
+                        stdscr.addstr(start_y + 2, start_x, " " * available_width, curses.color_pair(1))
+                        text2 = "Select a channel and press Enter to start"
+                        if len(text2) <= available_width:
+                            stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5) | curses.A_DIM)
                 except curses.error:
                     pass
             return
 
-        # Channel info
+        # Channel info - clear line first
         if available_width > 0:
             try:
+                stdscr.addstr(start_y, start_x, " " * available_width, curses.color_pair(1))
                 channel_title = f"{get_music_symbol()} {current_channel.title}"
                 if len(channel_title) > available_width:
                     channel_title = channel_title[: available_width - 3] + "..."
@@ -448,9 +462,10 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Channel description
+        # Channel description - clear line first
         if available_width > 0 and start_y + 1 < max_y:
             try:
+                stdscr.addstr(start_y + 1, start_x, " " * available_width, curses.color_pair(1))
                 description = current_channel.description or "No description"
                 if len(description) > available_width:
                     description = description[: available_width - 3] + "..."
@@ -459,9 +474,10 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Channel stats (listeners and bitrate)
+        # Channel stats (listeners and bitrate) - clear line first
         if available_width > 0 and start_y + 2 < max_y:
             try:
+                stdscr.addstr(start_y + 2, start_x, " " * available_width, curses.color_pair(1))
                 stats_parts = []
                 if current_channel.listeners > 0:
                     stats_parts.append(f"{get_listener_icon()} {current_channel.listeners}")
@@ -482,9 +498,10 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Current track
+        # Current track - clear line first
         if available_width > 0 and start_y + 4 < max_y:
             try:
+                stdscr.addstr(start_y + 3, start_x, " " * available_width, curses.color_pair(1))
                 is_paused = player and player.pause
                 play_symbol = get_play_symbol(is_paused)
                 current_track = f"{play_symbol} {self.current_metadata.artist} - {self.current_metadata.title}"
@@ -495,13 +512,15 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Track history
+        # Track history - clear lines first
         y = start_y + 6
         for track in self.track_history:
             if y >= height - 2 or y >= max_y:
                 break
             if available_width > 0:
                 try:
+                    # Clear line first
+                    stdscr.addstr(y, start_x, " " * available_width, curses.color_pair(1))
                     timestamp = f"[{track.timestamp}] " if track.timestamp else "  "
                     track_info = f"  {timestamp}{track.artist} - {track.title}"
                     if len(track_info) > available_width:
@@ -711,6 +730,10 @@ class UIScreen:
         start_x = max_x - timer_width - 1
 
         try:
+            # Clear area first (wider to handle longer previous values)
+            clear_width = max(timer_width, 15)
+            clear_x = max(0, start_x)
+            stdscr.addstr(start_y, clear_x, " " * clear_width, curses.color_pair(1))
             # Draw timer box
             stdscr.addstr(start_y, start_x, timer_text, curses.color_pair(3) | curses.A_BOLD)
         except curses.error:
@@ -727,6 +750,14 @@ class UIScreen:
         vol_bar_color = 60
         vol_icon_color = 61
 
+        # Clear the volume display area first
+        vol_icon = get_volume_icon()
+        clear_width = bar_width + len(vol_icon) + 10
+        try:
+            stdscr.addstr(start_y, start_x - len(vol_icon) - 5, " " * clear_width, curses.color_pair(1))
+        except curses.error:
+            pass
+
         # Draw filled blocks
         filled_blocks = int((volume / 100) * bar_width)
         empty_blocks = bar_width - filled_blocks
@@ -740,7 +771,6 @@ class UIScreen:
             stdscr.addstr(start_y, start_x + filled_blocks, empty_bar, curses.color_pair(vol_bar_color) | curses.A_DIM)
 
         # Draw speaker icon
-        vol_icon = get_volume_icon()
         icon_x = start_x - len(vol_icon)
         stdscr.addstr(start_y, icon_x, vol_icon, curses.color_pair(vol_icon_color) | curses.A_BOLD)
 

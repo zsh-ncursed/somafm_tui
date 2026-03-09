@@ -441,8 +441,14 @@ class SomaFMPlayer:
                     try:
                         key = stdscr.get_wch()
                         if key is not None:
-                            self.input_handler.handle_input(key)
-                            self._display_interface()
+                            # Handle terminal resize - clear screen before redraw
+                            if key == curses.KEY_RESIZE:
+                                stdscr.clear()
+                                self.input_handler.handle_input(key)
+                                self._display_interface()
+                            elif key is not None:
+                                self.input_handler.handle_input(key)
+                                self._display_interface()
                         else:
                             time.sleep(0.1)
                     except curses.error:
