@@ -19,6 +19,7 @@ from ..channels import (
     is_track_favorite,
     toggle_favorite,
 )
+from .state import StateManager
 
 
 class PlaybackController:
@@ -37,6 +38,7 @@ class PlaybackController:
         player_instance: Any,
         mpv_player: Any,
         ui_screen: UIScreen,
+        state_manager: StateManager,
         config: Dict[str, Any],
         cache_dir: str,
         channel_usage_file: str,
@@ -46,6 +48,7 @@ class PlaybackController:
         self.player_instance = player_instance
         self.player = mpv_player
         self.ui_screen = ui_screen
+        self.state_manager = state_manager
         self.config = config
         self.cache_dir = cache_dir
         self.channel_usage_file = channel_usage_file
@@ -227,45 +230,60 @@ class PlaybackController:
 
             logging.info(f"Switched to bitrate: {self.current_bitrate}")
 
-    def toggle_favorite_track(self) -> None:
-        """Toggle favorite status for current track or channel.
-        
-        If playing and metadata available, adds current track to favorites.
-        Otherwise toggles channel favorite status.
+    def toggle_channel_favorite(self) -> tuple[bool, str]:
+        """Toggle favorite status for selected channel.
+
+        Returns:
+            Tuple of (success, message)
         """
         channels = getattr(self.player_instance, 'channels', [])
         if not channels:
-            return
+            return False, "No channels available"
 
-        if self.is_playing and self.current_channel and self.current_metadata:
-            # Add current track to favorites
-            artist = self.current_metadata.artist
-            title = self.current_metadata.title
+        # Get selected channel from state manager (correct index)
+        current_index = self.state_manager.current_index
+        if current_index < len(channels):
+            channel_id = channels[current_index].id
+            favorites = toggle_favorite(channel_id, self.channel_favorites_file)
 
-            # Don't add if metadata is not available
-            if artist in ("Loading...", "Unknown") or title in ("Loading...", "Unknown"):
-                return False, "No track metadata available"
+            is_favorite = channel_id in favorites
+            message = "Added to favorites" if is_favorite else "Removed from favorites"
 
-            add_favorite_track(
-                self.track_favorites_file,
-                artist=artist,
-                title=title,
-                channel_id=self.current_channel.id,
-                channel_name=self.current_channel.title,
-            )
-            return True, f"Added to favorites: {artist} - {title}"
-        else:
-            # Toggle channel favorite
-            current_index = getattr(self.player_instance, 'current_index', 0)
-            if current_index < len(channels):
-                channel_id = channels[current_index].id
-                favorites = toggle_favorite(channel_id, self.channel_favorites_file)
+            # Trigger UI update
+            if self._on_playback_change:
+                self._on_playback_change()
 
-                is_favorite = channel_id in favorites
-                message = "Added to favorites" if is_favorite else "Removed from favorites"
-                return True, message
+            return True, message
 
         return False, "Cannot toggle favorite"
+
+    def toggle_favorite_track(self) -> tuple[bool, str]:
+        """Add current track to favorites.
+
+        Requires track metadata to be available.
+
+        Returns:
+            Tuple of (success, message)
+        """
+        if not self.is_playing or not self.current_channel:
+            return False, "No channel playing"
+
+        # Add current track to favorites
+        artist = self.current_metadata.artist
+        title = self.current_metadata.title
+
+        # Don't add if metadata is not available
+        if artist in ("Loading...", "Unknown") or title in ("Loading...", "Unknown"):
+            return False, "No track metadata available"
+
+        add_favorite_track(
+            self.track_favorites_file,
+            artist=artist,
+            title=title,
+            channel_id=self.current_channel.id,
+            channel_name=self.current_channel.title,
+        )
+        return True, f"Added to favorites: {artist} - {title}"
 
     def update_metadata(self, metadata: TrackMetadata) -> None:
         """Update current track metadata.

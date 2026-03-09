@@ -169,24 +169,25 @@ class SomaFMPlayer:
 
     def _init_components(self) -> None:
         """Initialize core application components."""
-        # Playback controller
-        self.playback = PlaybackController(
-            player_instance=self,
-            mpv_player=self.player,
-            ui_screen=self.ui_screen,
-            config=self.config,
-            cache_dir=CACHE_DIR,
-            channel_usage_file=CHANNEL_USAGE_FILE,
-            channel_favorites_file=CHANNEL_FAVORITES_FILE,
-            track_favorites_file=TRACK_FAVORITES_FILE,
-        )
-
-        # State manager
+        # Initialize state manager first (needed by playback controller)
         self.state = StateManager(
             config=self.config,
             channels=self.channels,
             cache_dir=CACHE_DIR,
             config_file=CONFIG_FILE,
+        )
+
+        # Playback controller
+        self.playback = PlaybackController(
+            player_instance=self,
+            mpv_player=self.player,
+            ui_screen=self.ui_screen,
+            state_manager=self.state,
+            config=self.config,
+            cache_dir=CACHE_DIR,
+            channel_usage_file=CHANNEL_USAGE_FILE,
+            channel_favorites_file=CHANNEL_FAVORITES_FILE,
+            track_favorites_file=TRACK_FAVORITES_FILE,
         )
 
         # Input handler
@@ -200,6 +201,7 @@ class SomaFMPlayer:
         self.playback.set_mpris_service(None)  # Will be set after MPRIS init
         self.state.set_on_state_change(self._on_state_change)
         self.state.set_on_theme_change(self._on_theme_change)
+        self.playback.set_on_playback_change(self._on_state_change)
 
     def _init_mpris(self) -> None:
         """Initialize MPRIS service."""

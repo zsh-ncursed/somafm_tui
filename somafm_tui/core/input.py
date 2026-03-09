@@ -159,8 +159,14 @@ class InputHandler:
                 self.playback.toggle_playback()
 
         # Favorites
-        elif key in ("f", "F"):
+        elif key == "f":
+            # 'f' adds current track to favorites
             success, message = self.playback.toggle_favorite_track()
+            if self._stdscr and message:
+                self.ui.show_notification(self._stdscr, message)
+        elif key == "\x06":  # Ctrl+F
+            # Ctrl+F toggles channel favorite
+            success, message = self.playback.toggle_channel_favorite()
             if self._stdscr and message:
                 self.ui.show_notification(self._stdscr, message)
 
@@ -177,7 +183,7 @@ class InputHandler:
                 theme_info = self.state.get_theme_info()
                 # Показываем уведомление без блокировки
                 self.ui.show_notification(
-                    self._stdscr, f"Theme: {theme_info.get('name', new_theme)}", timeout=0.5
+                    self._stdscr, f"Theme: {theme_info.get('name', new_theme)}", timeout=1.0
                 )
 
         # Volume

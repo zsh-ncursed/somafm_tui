@@ -151,7 +151,8 @@ somafm-tui
 | `/` | Search channels |
 | `?` | Toggle help window |
 | `Esc` | Exit search / close help |
-| `f` | Toggle favorite status |
+| `f` | Add current track to favorites |
+| `Ctrl+F` | Toggle channel favorite (heart icon) |
 | `t` | Cycle through color themes |
 | `q` | Quit application |
 
@@ -266,18 +267,41 @@ volume = 100
 
 Run `somafm-tui --list-themes` to see all available themes:
 
+#### Dark Themes
+
 | Theme | Description |
 |-------|-------------|
-| `default` | Default Dark — Classic dark theme |
-| `dracula` | Dracula — Popular dark theme |
-| `github-dark` | GitHub Dark — GitHub's dark theme |
-| `gruvbox` | Gruvbox — Retro terminal theme |
-| `monokai` | Monokai — Vibrant dark theme |
-| `nord` | Nord — Arctic blue theme |
-| `one-dark` | One Dark — Atom's dark theme |
-| `solarized-dark` | Solarized Dark — Balanced contrast |
-| `tokyo-night` | Tokyo Night — Deep blue theme |
-| *and more* | See `themes.json` for full list |
+| `default` | Default Dark — Classic dark theme with high contrast |
+| `dracula` | Dracula — Popular dark theme with pink and cyan accents |
+| `github-dark` | GitHub Dark — GitHub's official dark theme |
+| `gruvbox` | Gruvbox Dark — Retro terminal theme with warm colors |
+| `monokai` | Monokai Pro — Vibrant theme with pastel colors |
+| `nord` | Nord — Arctic blue theme with cool tones |
+| `one-dark` | One Dark — Atom's default dark theme |
+| `solarized-dark` | Solarized Dark — Balanced contrast with cyan/blue |
+| `tokyo-night` | Tokyo Night Storm — Deep blue/purple theme |
+| `ayu-dark` | Ayu Dark — Minimal dark theme with bright accents |
+| `ayu-mirage` | Ayu Mirage — Dark theme with warm sunset colors |
+| `night-owl` | Night Owl — Dark theme optimized for late night coding |
+| `catppuccin` | Catppuccin Mocha — Pastel dark theme |
+| `cobalt` | Cobalt — Classic blue dark theme |
+| `zenburn` | Zenburn — Low contrast dark theme |
+| `everforest` | Everforest Dark — Nature-inspired dark theme |
+| `kanagawa` | Kanagawa Dragon — Japanese-inspired dark theme |
+| `snazzy` | Snazzy — Hyper terminal's popular theme |
+| `monochrome-dark` | Monochrome — Pure black and white theme |
+
+#### Light Themes
+
+| Theme | Description |
+|-------|-------------|
+| `one-light` | One Light — Atom's light theme |
+| `github-light` | GitHub Light — GitHub's official light theme |
+| `solarized-light` | Solarized Light — Balanced contrast light theme |
+| `ayu-light` | Ayu Light — Clean light theme with orange accents |
+| `material-light` | Material Light — Google Material Design light theme |
+
+See `themes.json` for complete color definitions.
 
 ### Enabling MPRIS
 

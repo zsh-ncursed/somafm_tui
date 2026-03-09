@@ -5,13 +5,47 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.11] - 2026-03-09
 
-### Planned
-- Listening history export feature
-- Last.fm integration (scrobbling)
-- Support for other streaming services
-- GUI settings via ncurses dialogs
+### Added
+- **New keyboard shortcuts** for favorites management:
+  - `f` — Add current track to favorites (requires track metadata)
+  - `Ctrl+F` — Toggle channel favorite status (heart icon in channel list)
+- **3 new color themes**:
+  - Everforest Dark — Nature-inspired dark theme
+  - Kanagawa Dragon — Japanese-inspired dark theme
+  - Snazzy — Popular Hyper terminal theme
+- **Theme notification timeout** — Increased from 0.5s to 1.0s for better readability
+
+### Changed
+- **Color themes updated with official palettes** — All 24 themes now use authentic colors from original sources:
+  - Dracula, Nord, One Dark/Light, Solarized Dark/Light
+  - Gruvbox, Tokyo Night, Monokai Pro, GitHub Dark/Light
+  - Ayu Dark/Mirage/Light, Catppuccin Mocha, Night Owl
+  - Material Light, Cobalt, Zenburn, Everforest, Kanagawa, Snazzy
+- **README.md** — Updated theme descriptions and keyboard shortcuts documentation
+
+### Fixed
+- **UI refresh for favorites** — Channel list now properly updates when toggling channel favorite status
+- **Wrong channel favorite bug** — Fixed issue where favorite status was applied to wrong channel when scrolled
+- **Channel panel redraw** — Fixed y-coordinate calculation in `_redraw_channel_list()`
+
+### Technical
+- Modified `somafm_tui/core/playback.py`:
+  - Added `toggle_channel_favorite()` method for channel favorites
+  - Refactored `toggle_favorite_track()` to only handle track favorites
+  - Added `StateManager` dependency for correct channel index tracking
+- Modified `somafm_tui/core/input.py`:
+  - Separated `f` and `Ctrl+F` key handlers
+  - Increased theme notification timeout to 1.0s
+- Modified `somafm_tui/player.py`:
+  - Updated component initialization order (StateManager before PlaybackController)
+  - Added playback change callback for UI refresh
+- Modified `somafm_tui/ui.py`:
+  - Fixed `_redraw_channel_list()` y-coordinate calculation
+- Modified `somafm_tui/themes.json`:
+  - Updated all theme colors with official palettes
+  - Added 3 new themes (24 total: 19 dark + 5 light)
 
 ---
 

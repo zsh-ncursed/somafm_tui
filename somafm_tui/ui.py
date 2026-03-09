@@ -279,9 +279,10 @@ class UIScreen:
     ) -> None:
         """Redraw only the channel list portion."""
         visible_channels = panel_height - 3
+        start_y = 0  # Channel list always starts at y=0
 
         for i, channel in enumerate(channels[scroll_offset:scroll_offset + visible_channels]):
-            display_y = i
+            display_y = start_y + 1 + i
             if display_y >= panel_height - 1:
                 break
 
@@ -296,15 +297,15 @@ class UIScreen:
             try:
                 # Clear entire line first to prevent text remnants
                 line_width = split_x - 1
-                stdscr.addstr(display_y + 1, 0, " " * line_width, curses.color_pair(1))
-                
+                stdscr.addstr(display_y, 0, " " * line_width, curses.color_pair(1))
+
                 if i + scroll_offset == selected_index:
                     stdscr.addstr(
-                        display_y + 1, 0, f"> {display_title}"[:split_x - 1],
+                        display_y, 0, f"> {display_title}"[:split_x - 1],
                         curses.color_pair(2) | curses.A_REVERSE
                     )
                 else:
-                    stdscr.addstr(display_y + 1, 0, f"  {display_title}"[:split_x - 1], curses.color_pair(1))
+                    stdscr.addstr(display_y, 0, f"  {display_title}"[:split_x - 1], curses.color_pair(1))
             except curses.error:
                 continue
 
