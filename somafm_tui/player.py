@@ -339,6 +339,32 @@ class SomaFMPlayer:
         panel_height = max_y - 2
         self.state.update_scroll_offset(panel_height)
 
+        # Clear sleep overlay area if overlay is not active (prevent ghost overlay)
+        if not self.state.sleep_overlay_active:
+            try:
+                overlay_width = 30
+                overlay_height = 7
+                start_y = (max_y - overlay_height) // 2
+                start_x = (max_x - overlay_width) // 2
+                for y in range(start_y, min(start_y + overlay_height, max_y)):
+                    self.stdscr.move(y, start_x)
+                    self.stdscr.clrtoeol()
+            except curses.error:
+                pass
+
+        # Clear help overlay area if help is not active (prevent ghost overlay)
+        if not self.state.show_help:
+            try:
+                help_height = 32  # len(help_text) + 2
+                help_width = min(50, max_x - 10)
+                help_y = (max_y - help_height) // 2
+                help_x = (max_x - help_width) // 2
+                for y in range(help_y, min(help_y + help_height, max_y)):
+                    self.stdscr.move(y, help_x)
+                    self.stdscr.clrtoeol()
+            except curses.error:
+                pass
+
         self.ui_screen.display(
             self.stdscr,
             channels_to_display,
@@ -357,6 +383,12 @@ class SomaFMPlayer:
         # Show sleep overlay if active
         if self.state.sleep_overlay_active:
             self.ui_screen.display_sleep_overlay(self.stdscr, self.state.sleep_input)
+        else:
+            # Hide cursor when overlay is not active
+            try:
+                curses.curs_set(0)
+            except curses.error:
+                pass
 
         # Show sleep timer countdown if active
         if self.state.sleep_timer.is_active():
@@ -415,12 +447,19 @@ class SomaFMPlayer:
 
                 self._display_interface()
 
-                while self.state.is_running():
-                    # Check sleep timer
-                    if self.state.check_sleep_timer():
-                        break
+                # Cache time for the main loop iteration
+                _last_timer_check = 0.0
 
-                    # Update timer display
+                while self.state.is_running():
+                    current_time = time.time()
+
+                    # Check sleep timer every 10 seconds (not every cycle)
+                    if current_time - _last_timer_check >= 10:
+                        if self.state.check_sleep_timer():
+                            break
+                        _last_timer_check = current_time
+
+                    # Update timer display if needed
                     if self.state.should_update_timer_display():
                         self.ui_screen.display_sleep_timer(
                             self.stdscr, self.state.get_timer_remaining()
@@ -428,33 +467,30 @@ class SomaFMPlayer:
                         stdscr.refresh()
 
                     # Check volume display timeout
-                    needs_refresh = False
                     if (
                         self.ui_screen.volume_display is not None
-                        and time.time() - self.ui_screen.volume_display_time >= 3
+                        and current_time - self.ui_screen.volume_display_time >= 3
                     ):
                         self.ui_screen.volume_display = None
-                        needs_refresh = True
-
-                    if needs_refresh:
                         self._display_interface()
 
                     # Get user input
                     try:
                         key = stdscr.get_wch()
                         if key is not None:
-                            # Handle terminal resize - clear screen before redraw
+                            # Handle terminal resize - invalidate cache and force full redraw
                             if key == curses.KEY_RESIZE:
-                                stdscr.clear()
+                                self.ui_screen.invalidate_cache()
                                 self.input_handler.handle_input(key)
-                                self._display_interface()
-                            elif key is not None:
+                            else:
                                 self.input_handler.handle_input(key)
-                                self._display_interface()
+                            # Redraw interface (full redraw if cache was invalidated)
+                            self._display_interface()
                         else:
-                            time.sleep(0.1)
+                            # Short sleep for responsive UI (50ms = 20 FPS)
+                            time.sleep(0.05)
                     except curses.error:
-                        time.sleep(0.1)
+                        time.sleep(0.05)
                         continue
 
             except Exception as e:

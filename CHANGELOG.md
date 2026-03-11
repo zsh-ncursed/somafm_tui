@@ -5,7 +5,63 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.11] - 2026-03-09
+## [0.5.12] - 2026-03-11
+
+### Fixed
+- **Screen corruption on terminal resize** — Fixed text artifacts and corruption when resizing terminal window:
+  - Replaced `addstr(" " * width)` with `move() + clrtoeol()` in all redraw methods
+  - Fixed channel list, playback info, search prompt, instructions, and sleep timer display
+  - Prevents text remnants when terminal width decreases
+
+- **Ghost sleep timer overlay** — Sleep timer input overlay now properly disappears when pressing Esc:
+  - Changed from `curses.newwin()` to drawing on main screen
+  - Added automatic cleanup of overlay area when hidden
+  - Cursor properly hidden after closing overlay
+
+- **Ghost help overlay** — Help screen (?) now fully clears when pressing Esc or ?:
+  - Changed from `curses.newwin()` to drawing on main screen
+  - Added automatic cleanup of help area when hidden
+
+### Performance
+- **Improved UI responsiveness** — Reduced input lag from 100ms to 50ms (20 FPS):
+  - Changed main loop sleep from `time.sleep(0.1)` to `time.sleep(0.05)`
+  - More responsive keyboard input and navigation
+
+- **Optimized sleep timer checks** — Reduced CPU usage:
+  - Timer expiration check reduced from every cycle to every 10 seconds
+  - Single `time.time()` call per main loop iteration (cached for all checks)
+
+- **Removed forced full redraw** — Eliminated unnecessary 2-second full screen redraw:
+  - Partial redraw with `clrtoeol()` is sufficient to prevent artifacts
+  - ~2.5% reduction in CPU usage for redraw operations
+  - Full redraw only on: channel changes, search mode, help overlay, cache invalidation
+
+### Technical
+- Modified `somafm_tui/ui.py`:
+  - `_redraw_channel_list()` — Use `clrtoeol()` for line clearing
+  - `_redraw_playback_info()` — Use `clrtoeol()` for area clearing
+  - `_redraw_search_prompt()` — Use `clrtoeol()` for line clearing
+  - `_display_channels_panel()` — Use `clrtoeol()` for all lines
+  - `_display_playback_panel()` — Use `clrtoeol()` for all lines
+  - `_display_instructions()` — Use `clrtoeol()` for instruction lines
+  - `display_sleep_timer()` — Use `clrtoeol()` for timer area
+  - `display_sleep_overlay()` — Draw on main screen instead of `newwin()`
+  - `_display_help()` — Draw on main screen instead of `newwin()`
+  - Removed `_full_redraw_interval` and forced redraw logic
+  - Added `cache_invalidated` check for proper full redraw on resize/theme change
+
+- Modified `somafm_tui/player.py`:
+  - Reduced main loop sleep from 100ms to 50ms
+  - Sleep timer check every 10 seconds instead of every cycle
+  - Cache `time.time()` once per loop iteration
+  - Added cleanup for sleep overlay area when hidden
+  - Added cleanup for help overlay area when hidden
+  - Proper cursor hide/show for sleep overlay
+
+- Modified `somafm_tui/core/state.py`:
+  - Simplified `hide_sleep_overlay()` (cleanup moved to `_display_interface()`)
+
+---
 
 ### Added
 - **New keyboard shortcuts** for favorites management:

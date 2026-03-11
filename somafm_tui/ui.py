@@ -69,12 +69,11 @@ class UIScreen:
         self._prev_search_query: str = ""
         self._prev_show_help: bool = False
         self._prev_bitrate: str = ""
-        self._last_full_redraw: float = 0
-        self._full_redraw_interval: float = 2.0  # Force full redraw every 2 seconds
+        # No forced full redraw interval - partial redraw with clrtoeol() is sufficient
 
     def invalidate_cache(self) -> None:
         """Invalidate redraw cache to force full redraw.
-        
+
         Call this when theme changes or screen is cleared.
         """
         self._prev_channels_hash = 0
@@ -87,7 +86,6 @@ class UIScreen:
         self._prev_search_query = ""
         self._prev_show_help = False
         self._prev_bitrate = ""
-        self._last_full_redraw = 0
 
     def display(
         self,
@@ -106,13 +104,13 @@ class UIScreen:
         current_bitrate: str = "",
     ) -> None:
         """Display combined interface with smart redraw optimization.
-        
+
         Only redraws changed portions of the screen to improve performance.
         Full redraw is performed when:
         - Help overlay is shown
         - Search mode changes
         - Channels list changes
-        - Every _full_redraw_interval seconds to prevent screen burn-in
+        - Cache is invalidated (resize, theme change)
         """
         import hashlib
         import time
@@ -145,10 +143,12 @@ class UIScreen:
         metadata_changed = metadata_hash != self._prev_metadata_hash
         search_changed = search_query != self._prev_search_query
         help_changed = show_help != self._prev_show_help
-        force_redraw = (current_time - self._last_full_redraw) > self._full_redraw_interval
         
+        # Cache was invalidated (e.g., after resize or theme change) - force full redraw
+        cache_invalidated = self._prev_channels_hash == 0
+
         # Determine if we need full redraw
-        needs_full_redraw = force_redraw or channels_changed or search_changed or help_changed
+        needs_full_redraw = cache_invalidated or channels_changed or search_changed or help_changed
         
         # Adaptive width for channels panel (25-40 chars, max 1/3 of screen)
         split_x = min(max(25, max_x // 3), 40)
@@ -161,7 +161,6 @@ class UIScreen:
                 current_channel, player, is_playing, current_bitrate,
                 split_x, panel_height, max_y, max_x, is_searching, search_query
             )
-            self._last_full_redraw = current_time
         else:
             # Partial redraw - only update changed elements
             self._partial_redraw(
@@ -199,20 +198,9 @@ class UIScreen:
         max_y: int, max_x: int, is_searching: bool, search_query: str
     ) -> None:
         """Perform full screen redraw."""
-        # Clear screen and fill background
+        # Clear screen and set background
         stdscr.clear()
         stdscr.bkgd(" ", curses.color_pair(1))
-
-        # Fill entire screen to avoid gaps
-        for y in range(max_y):
-            try:
-                stdscr.addstr(y, 0, " " * max_x, curses.color_pair(1))
-            except curses.error:
-                if y == max_y - 1:
-                    try:
-                        stdscr.addstr(y, 0, " " * (max_x - 1), curses.color_pair(1))
-                    except curses.error:
-                        pass
 
         # Draw vertical separator
         for y in range(max_y):
@@ -246,29 +234,31 @@ class UIScreen:
         playback_changed: bool, metadata_changed: bool
     ) -> None:
         """Perform partial redraw - only update changed elements.
-        
+
         Note: This does NOT update background color. For theme changes,
         use _full_redraw() instead.
         """
-        
-        # Update channel list if selection, scroll, or favorites changed
+        # Redraw channel list if selection, scroll, or favorites changed
         if selection_changed or scroll_changed or favorites_changed:
             self._redraw_channel_list(
                 stdscr, channels, selected_index, scroll_offset, channel_favorites,
                 split_x, panel_height,
             )
-        
-        # Update playback info if playback state or metadata changed
+
+        # Redraw playback info if playback state or metadata changed
         if playback_changed or metadata_changed:
             self._redraw_playback_info(
                 stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
                 current_channel, player, is_playing, current_bitrate,
             )
-        
-        # Update search prompt if searching
+
+        # Redraw search prompt if searching
         if is_searching:
             self._redraw_search_prompt(stdscr, search_query, split_x, panel_height)
-        
+
+        # Always redraw instructions (may change with screen width)
+        self._redraw_instructions(stdscr, max_y, max_x)
+
         # Refresh screen to show changes
         stdscr.refresh()
 
@@ -278,12 +268,13 @@ class UIScreen:
         split_x: int, panel_height: int
     ) -> None:
         """Redraw only the channel list portion."""
+        max_y, max_x = stdscr.getmaxyx()
         visible_channels = panel_height - 3
         start_y = 0  # Channel list always starts at y=0
 
         for i, channel in enumerate(channels[scroll_offset:scroll_offset + visible_channels]):
             display_y = start_y + 1 + i
-            if display_y >= panel_height - 1:
+            if display_y >= panel_height - 1 or display_y >= max_y:
                 break
 
             # Prepare channel title
@@ -295,13 +286,12 @@ class UIScreen:
             display_title = f"{fav_icon}{title}"
 
             try:
-                # Clear entire line first to prevent text remnants
-                line_width = split_x - 1
-                stdscr.addstr(display_y, 0, " " * line_width, curses.color_pair(1))
+                # Clear line using clrtoeol to prevent text remnants on resize
+                stdscr.move(display_y, 0)
+                stdscr.clrtoeol()
 
                 if i + scroll_offset == selected_index:
-                    stdscr.addstr(
-                        display_y, 0, f"> {display_title}"[:split_x - 1],
+                    stdscr.addstr(display_y, 0, f"> {display_title}"[:split_x - 1],
                         curses.color_pair(2) | curses.A_REVERSE
                     )
                 else:
@@ -316,12 +306,12 @@ class UIScreen:
     ) -> None:
         """Redraw only the playback info portion."""
         max_y, max_x = stdscr.getmaxyx()
-        available_width = min(width, max_x - start_x)
-
-        # Clear playback area
-        for y in range(start_y, min(start_y + 6, height - 1, max_y)):
+        
+        # Clear playback area using clrtoeol for each line (efficient and prevents artifacts)
+        for y in range(start_y, min(start_y + 10, max_y)):
             try:
-                stdscr.addstr(y, start_x, " " * available_width, curses.color_pair(1))
+                stdscr.move(y, start_x)
+                stdscr.clrtoeol()
             except curses.error:
                 pass
 
@@ -339,7 +329,8 @@ class UIScreen:
         prompt = f"Search: {search_query}"
         prompt_y = panel_height - 2
         try:
-            stdscr.addstr(prompt_y, 0, " " * (split_x - 1), curses.color_pair(1))
+            stdscr.move(prompt_y, 0)
+            stdscr.clrtoeol()
             stdscr.addstr(prompt_y, 0, prompt[:split_x - 1], curses.color_pair(2) | curses.A_BOLD)
             curses.curs_set(1)
             stdscr.move(prompt_y, len(prompt))
@@ -366,8 +357,9 @@ class UIScreen:
             header = f"Channels ({len(channels)})"
             if len(header) > width - 2:
                 header = header[: width - 5] + "..."
-            # Clear header line first
-            stdscr.addstr(start_y, start_x, " " * (width - 1), curses.color_pair(1))
+            # Clear header line first using clrtoeol
+            stdscr.move(start_y, start_x)
+            stdscr.clrtoeol()
             stdscr.addstr(start_y, start_x, header, curses.color_pair(1) | curses.A_BOLD)
         except curses.error:
             pass
@@ -390,9 +382,9 @@ class UIScreen:
             display_title = f"{fav_icon}{title}"
 
             try:
-                # Clear line first to prevent text remnants
-                line_width = width - 1
-                stdscr.addstr(display_y, start_x, " " * line_width, curses.color_pair(1))
+                # Clear line first using clrtoeol to prevent text remnants
+                stdscr.move(display_y, start_x)
+                stdscr.clrtoeol()
 
                 if i + scroll_offset == selected_index:
                     stdscr.addstr(
@@ -408,7 +400,8 @@ class UIScreen:
             prompt = f"Search: {search_query}"
             prompt_y = start_y + height - 2
             try:
-                stdscr.addstr(prompt_y, start_x, " " * (width - 1), curses.color_pair(1))
+                stdscr.move(prompt_y, start_x)
+                stdscr.clrtoeol()
                 stdscr.addstr(prompt_y, start_x, prompt[: width - 1], curses.color_pair(2) | curses.A_BOLD)
                 curses.curs_set(1)
                 stdscr.move(prompt_y, start_x + len(prompt))
@@ -436,14 +429,16 @@ class UIScreen:
         if not current_channel or not is_playing:
             if available_width > 0:
                 try:
-                    # Clear lines before writing
-                    stdscr.addstr(start_y, start_x, " " * available_width, curses.color_pair(1))
+                    # Clear line using clrtoeol
+                    stdscr.move(start_y, start_x)
+                    stdscr.clrtoeol()
                     text = "No channel playing"
                     if len(text) <= available_width:
                         stdscr.addstr(start_y, start_x, text, curses.color_pair(3))
 
                     if start_y + 2 < max_y:
-                        stdscr.addstr(start_y + 2, start_x, " " * available_width, curses.color_pair(1))
+                        stdscr.move(start_y + 2, start_x)
+                        stdscr.clrtoeol()
                         text2 = "Select a channel and press Enter to start"
                         if len(text2) <= available_width:
                             stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5) | curses.A_DIM)
@@ -454,7 +449,8 @@ class UIScreen:
         # Channel info - clear line first
         if available_width > 0:
             try:
-                stdscr.addstr(start_y, start_x, " " * available_width, curses.color_pair(1))
+                stdscr.move(start_y, start_x)
+                stdscr.clrtoeol()
                 channel_title = f"{get_music_symbol()} {current_channel.title}"
                 if len(channel_title) > available_width:
                     channel_title = channel_title[: available_width - 3] + "..."
@@ -466,7 +462,8 @@ class UIScreen:
         # Channel description - clear line first
         if available_width > 0 and start_y + 1 < max_y:
             try:
-                stdscr.addstr(start_y + 1, start_x, " " * available_width, curses.color_pair(1))
+                stdscr.move(start_y + 1, start_x)
+                stdscr.clrtoeol()
                 description = current_channel.description or "No description"
                 if len(description) > available_width:
                     description = description[: available_width - 3] + "..."
@@ -478,7 +475,8 @@ class UIScreen:
         # Channel stats (listeners and bitrate) - clear line first
         if available_width > 0 and start_y + 2 < max_y:
             try:
-                stdscr.addstr(start_y + 2, start_x, " " * available_width, curses.color_pair(1))
+                stdscr.move(start_y + 2, start_x)
+                stdscr.clrtoeol()
                 stats_parts = []
                 if current_channel.listeners > 0:
                     stats_parts.append(f"{get_listener_icon()} {current_channel.listeners}")
@@ -502,7 +500,8 @@ class UIScreen:
         # Current track - clear line first
         if available_width > 0 and start_y + 4 < max_y:
             try:
-                stdscr.addstr(start_y + 3, start_x, " " * available_width, curses.color_pair(1))
+                stdscr.move(start_y + 3, start_x)
+                stdscr.clrtoeol()
                 is_paused = player and player.pause
                 play_symbol = get_play_symbol(is_paused)
                 current_track = f"{play_symbol} {self.current_metadata.artist} - {self.current_metadata.title}"
@@ -520,8 +519,9 @@ class UIScreen:
                 break
             if available_width > 0:
                 try:
-                    # Clear line first
-                    stdscr.addstr(y, start_x, " " * available_width, curses.color_pair(1))
+                    # Clear line using clrtoeol
+                    stdscr.move(y, start_x)
+                    stdscr.clrtoeol()
                     timestamp = f"[{track.timestamp}] " if track.timestamp else "  "
                     track_info = f"  {timestamp}{track.artist} - {track.title}"
                     if len(track_info) > available_width:
@@ -578,11 +578,18 @@ class UIScreen:
                 if i >= available_lines:
                     break
                 y_pos = max_y - available_lines + i
+                # Clear line first using clrtoeol to prevent artifacts
+                stdscr.move(y_pos, 0)
+                stdscr.clrtoeol()
                 padded_line = line.ljust(available_width)
                 stdscr.addstr(y_pos, 0, padded_line, curses.color_pair(5) | curses.A_DIM)
 
         except curses.error:
             pass
+
+    def _redraw_instructions(self, stdscr: curses.window, max_y: int, max_x: int) -> None:
+        """Redraw only the instructions at bottom (for partial redraw)."""
+        self._display_instructions(stdscr, max_y, max_x)
 
     def _handle_volume_display(self, stdscr: curses.window) -> None:
         """Handle volume indicator display"""
@@ -674,7 +681,7 @@ class UIScreen:
         stdscr: curses.window,
         sleep_input: str,
     ) -> None:
-        """Display sleep timer input overlay"""
+        """Display sleep timer input overlay - drawn on main screen for proper cleanup."""
         max_y, max_x = stdscr.getmaxyx()
 
         # Overlay dimensions
@@ -684,34 +691,48 @@ class UIScreen:
         start_x = (max_x - overlay_width) // 2
 
         try:
-            # Create overlay window
-            overlay = curses.newwin(overlay_height, overlay_width, start_y, start_x)
-            overlay.bkgd(" ", curses.color_pair(1))
-            overlay.attron(curses.color_pair(3) | curses.A_BOLD)
-            overlay.border(0)
-            overlay.attroff(curses.color_pair(3) | curses.A_BOLD)
+            # Draw overlay box manually (curses.window.box doesn't accept coordinates)
+            stdscr.attron(curses.color_pair(3) | curses.A_BOLD)
+            
+            # Draw border
+            for x in range(overlay_width):
+                stdscr.addstr(start_y, start_x + x, "─", curses.color_pair(3) | curses.A_BOLD)
+                stdscr.addstr(start_y + overlay_height - 1, start_x + x, "─", curses.color_pair(3) | curses.A_BOLD)
+            for y in range(1, overlay_height - 1):
+                stdscr.addstr(start_y + y, start_x, "│", curses.color_pair(3) | curses.A_BOLD)
+                stdscr.addstr(start_y + y, start_x + overlay_width - 1, "│", curses.color_pair(3) | curses.A_BOLD)
+            
+            # Corners
+            stdscr.addstr(start_y, start_x, "┌", curses.color_pair(3) | curses.A_BOLD)
+            stdscr.addstr(start_y, start_x + overlay_width - 1, "┐", curses.color_pair(3) | curses.A_BOLD)
+            stdscr.addstr(start_y + overlay_height - 1, start_x, "└", curses.color_pair(3) | curses.A_BOLD)
+            stdscr.addstr(start_y + overlay_height - 1, start_x + overlay_width - 1, "┘", curses.color_pair(3) | curses.A_BOLD)
+            
+            stdscr.attroff(curses.color_pair(3) | curses.A_BOLD)
 
             # Title
             title = "Sleep Timer"
-            overlay.addstr(1, (overlay_width - len(title)) // 2, title, curses.color_pair(1) | curses.A_BOLD)
+            stdscr.addstr(start_y + 1, start_x + (overlay_width - len(title)) // 2,
+                         title, curses.color_pair(1) | curses.A_BOLD)
 
             # Input field
             input_label = "Minutes: "
             input_value = sleep_input or ""
             input_display = input_label + input_value + "_"
-            overlay.addstr(3, 2, input_display[:overlay_width - 4], curses.color_pair(2))
+            stdscr.addstr(start_y + 3, start_x + 2, input_display[:overlay_width - 4],
+                         curses.color_pair(2))
 
             # Hints
-            overlay.addstr(5, 2, "Esc: cancel", curses.color_pair(5) | curses.A_DIM)
-
-            overlay.refresh()
+            stdscr.addstr(start_y + 5, start_x + 2, "Esc: cancel",
+                         curses.color_pair(5) | curses.A_DIM)
 
             # Position cursor at input
             curses.curs_set(1)
             stdscr.move(start_y + 3, start_x + 2 + len(input_label) + len(input_value))
+            stdscr.refresh()
 
         except curses.error:
-            pass
+            curses.curs_set(0)
 
     def display_sleep_timer(
         self,
@@ -731,10 +752,9 @@ class UIScreen:
         start_x = max_x - timer_width - 1
 
         try:
-            # Clear area first (wider to handle longer previous values)
-            clear_width = max(timer_width, 15)
-            clear_x = max(0, start_x)
-            stdscr.addstr(start_y, clear_x, " " * clear_width, curses.color_pair(1))
+            # Clear area using clrtoeol to prevent artifacts
+            stdscr.move(start_y, start_x)
+            stdscr.clrtoeol()
             # Draw timer box
             stdscr.addstr(start_y, start_x, timer_text, curses.color_pair(3) | curses.A_BOLD)
         except curses.error:
@@ -795,7 +815,7 @@ class UIScreen:
             pass
 
     def _display_help(self, stdscr: curses.window, max_y: int, max_x: int) -> None:
-        """Display help screen"""
+        """Display help screen - drawn on main screen for proper cleanup."""
         help_text = [
             ("SomaFM TUI - Keyboard Shortcuts", "header"),
             ("", ""),
@@ -835,17 +855,28 @@ class UIScreen:
         box_x = (max_x - box_width) // 2  # Center horizontally
 
         try:
-            # Create a subwindow for the help box
-            help_win = curses.newwin(box_height, box_width, box_y, box_x)
-
-            # Draw box border on the subwindow
-            help_win.attron(curses.color_pair(3) | curses.A_BOLD)
-            help_win.border(0)
-            help_win.attroff(curses.color_pair(3) | curses.A_BOLD)
+            # Draw overlay box manually on main screen (not separate window)
+            stdscr.attron(curses.color_pair(3) | curses.A_BOLD)
+            
+            # Draw border
+            for x in range(box_width):
+                stdscr.addstr(box_y, box_x + x, "─", curses.color_pair(3) | curses.A_BOLD)
+                stdscr.addstr(box_y + box_height - 1, box_x + x, "─", curses.color_pair(3) | curses.A_BOLD)
+            for y in range(1, box_height - 1):
+                stdscr.addstr(box_y + y, box_x, "│", curses.color_pair(3) | curses.A_BOLD)
+                stdscr.addstr(box_y + y, box_x + box_width - 1, "│", curses.color_pair(3) | curses.A_BOLD)
+            
+            # Corners
+            stdscr.addstr(box_y, box_x, "┌", curses.color_pair(3) | curses.A_BOLD)
+            stdscr.addstr(box_y, box_x + box_width - 1, "┐", curses.color_pair(3) | curses.A_BOLD)
+            stdscr.addstr(box_y + box_height - 1, box_x, "└", curses.color_pair(3) | curses.A_BOLD)
+            stdscr.addstr(box_y + box_height - 1, box_x + box_width - 1, "┘", curses.color_pair(3) | curses.A_BOLD)
+            
+            stdscr.attroff(curses.color_pair(3) | curses.A_BOLD)
 
             # Draw help content
             for i, (text, style) in enumerate(help_text):
-                y = 1 + i
+                y = box_y + 1 + i
 
                 if style == "header":
                     attr = curses.color_pair(1) | curses.A_BOLD
@@ -854,13 +885,11 @@ class UIScreen:
                 else:
                     attr = curses.color_pair(1)
 
-                help_win.addstr(y, 2, text.ljust(box_width - 4)[:box_width - 4], attr)
+                stdscr.addstr(y, box_x + 2, text.ljust(box_width - 4)[:box_width - 4], attr)
 
             # Draw footer
             footer = "Press ? or ESC to close"
-            help_win.addstr(box_height - 2, 2, footer.ljust(box_width - 4), curses.color_pair(5) | curses.A_DIM)
-
-            help_win.refresh()
+            stdscr.addstr(box_y + box_height - 2, box_x + 2, footer.ljust(box_width - 4), curses.color_pair(5) | curses.A_DIM)
 
         except curses.error:
             pass
