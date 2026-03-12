@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "somafm-tui"
-version = "0.6.0"
+version = "0.6.1"
 description = "Terminal user interface for SomaFM internet radio"
 readme = "README.md"
 license = "MIT"
