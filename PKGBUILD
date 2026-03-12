@@ -73,6 +73,7 @@ package() {
     install -Dm644 "$srcdir/$pkgname/somafm_tui/terminal.py" "$pkgdir/usr/lib/somafm_tui/somafm_tui/terminal.py"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/timer.py" "$pkgdir/usr/lib/somafm_tui/somafm_tui/timer.py"
     install -Dm644 "$srcdir/$pkgname/somafm_tui/cli.py" "$pkgdir/usr/lib/somafm_tui/somafm_tui/cli.py"
+    install -Dm644 "$srcdir/$pkgname/somafm_tui/bitrate_utils.py" "$pkgdir/usr/lib/somafm_tui/somafm_tui/bitrate_utils.py"
 
     # Install core module files
     install -Dm644 "$srcdir/$pkgname/somafm_tui/core/__init__.py" "$pkgdir/usr/lib/somafm_tui/somafm_tui/core/__init__.py"
