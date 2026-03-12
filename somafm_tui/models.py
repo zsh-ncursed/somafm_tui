@@ -5,6 +5,17 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import re
 
+from .bitrate_utils import (
+    extract_bitrate_from_url,
+    extract_bitrate_from_playlist_filename,
+    map_bitrate_number_to_label,
+    map_label_to_bitrate_numbers,
+    get_bitrate_sort_key,
+    LABEL_TO_BITRATE_NUMS,
+    FORMAT_PRIORITY,
+    BITRATE_ORDER,
+)
+
 
 @dataclass
 class TrackMetadata:
@@ -57,23 +68,8 @@ class Channel:
         for playlist in data.get("playlists", []):
             if playlist.get("format") == "mp3":
                 stream_url = playlist.get("url")
-                # Extract bitrate from URL if possible
-                url = playlist.get("url", "")
-                # Check for bitrate in URL (order matters - check longer first)
-                if "320" in url:
-                    bitrate = "320k"
-                elif "256" in url:
-                    bitrate = "256k"
-                elif "192" in url:
-                    bitrate = "192k"
-                elif "128" in url:
-                    bitrate = "128k"
-                elif "96" in url:
-                    bitrate = "96k"
-                elif "64" in url:
-                    bitrate = "64k"
-                elif "32" in url:
-                    bitrate = "32k"
+                # Extract bitrate from URL using centralized utility
+                bitrate = extract_bitrate_from_url(playlist.get("url", ""))
                 break
 
         # Parse listeners
@@ -109,44 +105,27 @@ class Channel:
 
     def get_available_bitrates(self) -> List[str]:
         """Get list of available bitrates for this channel.
-        
+
         Returns bitrates from all playlist formats (mp3, aac, aacp).
         Bitrate is extracted from playlist URL filename.
         """
         bitrates = set()
-        
+
         for playlist in self.playlists:
             fmt = playlist.get("format", "")
             url = playlist.get("url", "")
-            
-            # Extract bitrate from playlist filename
+
+            # Extract bitrate from playlist filename using centralized utility
             # Patterns: bootliquor320.pls, beatblender130.pls, 7soul64.pls
-            match = re.search(r'(\d{2,3})\.pls$', url)
-            if match:
-                br_num = int(match.group(1))
-                # Map to standard bitrate labels
-                if br_num >= 256:
-                    br_label = "320k"
-                elif br_num >= 128:
-                    br_label = "128k"
-                elif br_num >= 64:
-                    br_label = "64k"
-                else:
-                    br_label = "32k"
+            br_label = extract_bitrate_from_playlist_filename(url)
+            if br_label:
                 bitrates.add(f"{fmt}:{br_label}")
             else:
                 # Default bitrate for playlists without number in name
                 bitrates.add(f"{fmt}:128k")
-        
-        # Sort by format priority (mp3 first) then by bitrate
-        format_priority = {"mp3": 0, "aac": 1, "aacp": 2}
-        bitrate_order = {"320k": 0, "256k": 1, "192k": 2, "128k": 3, "96k": 4, "64k": 5, "32k": 6}
-        
-        def sort_key(item):
-            fmt, br = item.split(":")
-            return (format_priority.get(fmt, 99), bitrate_order.get(br, 99))
-        
-        sorted_bitrates = sorted(bitrates, key=sort_key)
+
+        # Sort by format priority (mp3 first) then by bitrate using centralized utility
+        sorted_bitrates = sorted(bitrates, key=get_bitrate_sort_key)
         return sorted_bitrates if sorted_bitrates else ["mp3:128k"]
 
     def get_stream_url_for_bitrate(self, bitrate: str) -> Optional[str]:
@@ -160,27 +139,9 @@ class Channel:
             target_fmt = "mp3"
             target_br = bitrate
 
-        # Map bitrate label back to filename pattern
+        # Map bitrate label back to filename patterns using centralized utility
         # SomaFM uses: 320, 130 (for 128k), 64, etc.
-        br_to_num = {
-            "320k": "320",
-            "256k": "256",
-            "192k": "192",
-            "128k": "130",  # SomaFM uses 130 for 128k
-            "96k": "96",
-            "64k": "64",
-            "32k": "32",
-        }
-        target_num = br_to_num.get(target_br, "130")
-
-        # Also map back from standard numbers (for non-SomaFM playlists)
-        br_alt_map = {
-            "128k": ["128", "130"],  # Accept both 128 and 130
-            "320k": ["320"],
-            "64k": ["64"],
-            "32k": ["32"],
-        }
-        alt_nums = br_alt_map.get(target_br, [target_num])
+        alt_nums = map_label_to_bitrate_numbers(target_br)
 
         # Find matching playlist
         for playlist in self.playlists:

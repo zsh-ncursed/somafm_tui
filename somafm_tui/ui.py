@@ -8,12 +8,6 @@ from typing import Any, Dict, List, Optional, Set
 from .models import TrackMetadata, Channel
 
 
-# Check if terminal supports emoji - not used anymore, kept for compatibility
-def _supports_emoji() -> bool:
-    """Check if terminal supports Unicode emoji (kept for compatibility)"""
-    return False  # Always use ASCII for reliability
-
-
 # Icon functions - listeners/bitrate use ASCII, others use Unicode
 def get_listener_icon() -> str:
     """Get listener icon"""
@@ -201,13 +195,6 @@ class UIScreen:
         # Clear screen and set background
         stdscr.clear()
         stdscr.bkgd(" ", curses.color_pair(1))
-
-        # Draw vertical separator
-        for y in range(max_y):
-            try:
-                stdscr.addstr(y, split_x, "│", curses.color_pair(1))
-            except curses.error:
-                pass
 
         # Left panel: Channel list
         self._display_channels_panel(
@@ -552,11 +539,18 @@ class UIScreen:
             available_width = max_x - 1
             available_lines = 2
 
+            # First, completely clear the instruction area to prevent artifacts
+            for i in range(available_lines):
+                y_pos = max_y - available_lines + i
+                stdscr.move(y_pos, 0)
+                stdscr.clrtoeol()
+
             lines = []
             current_line = ""
 
             for item in instruction_items:
-                separator = " | " if current_line else ""
+                # Use space separator instead of " | "
+                separator = "  " if current_line else ""
                 test_line = current_line + separator + item
 
                 if len(test_line) <= available_width:
@@ -578,9 +572,6 @@ class UIScreen:
                 if i >= available_lines:
                     break
                 y_pos = max_y - available_lines + i
-                # Clear line first using clrtoeol to prevent artifacts
-                stdscr.move(y_pos, 0)
-                stdscr.clrtoeol()
                 padded_line = line.ljust(available_width)
                 stdscr.addstr(y_pos, 0, padded_line, curses.color_pair(5) | curses.A_DIM)
 
@@ -757,60 +748,6 @@ class UIScreen:
             stdscr.clrtoeol()
             # Draw timer box
             stdscr.addstr(start_y, start_x, timer_text, curses.color_pair(3) | curses.A_BOLD)
-        except curses.error:
-            pass
-
-    def _display_volume(self, stdscr: curses.window) -> None:
-        """Display volume level"""
-        max_y, max_x = stdscr.getmaxyx()
-        bar_width = 20
-        start_y = 1
-        start_x = max_x - bar_width - 5
-
-        volume = self.volume_display
-        vol_bar_color = 60
-        vol_icon_color = 61
-
-        # Clear the volume display area first
-        vol_icon = get_volume_icon()
-        clear_width = bar_width + len(vol_icon) + 10
-        try:
-            stdscr.addstr(start_y, start_x - len(vol_icon) - 5, " " * clear_width, curses.color_pair(1))
-        except curses.error:
-            pass
-
-        # Draw filled blocks
-        filled_blocks = int((volume / 100) * bar_width)
-        empty_blocks = bar_width - filled_blocks
-
-        if filled_blocks > 0:
-            filled_bar = "█" * filled_blocks
-            stdscr.addstr(start_y, start_x, filled_bar, curses.color_pair(vol_bar_color) | curses.A_BOLD)
-
-        if empty_blocks > 0:
-            empty_bar = "▁" * empty_blocks
-            stdscr.addstr(start_y, start_x + filled_blocks, empty_bar, curses.color_pair(vol_bar_color) | curses.A_DIM)
-
-        # Draw speaker icon
-        icon_x = start_x - len(vol_icon)
-        stdscr.addstr(start_y, icon_x, vol_icon, curses.color_pair(vol_icon_color) | curses.A_BOLD)
-
-        # Draw percentage
-        vol_text = f"{volume:3d}%"
-        text_x = start_x + bar_width
-        stdscr.addstr(start_y, text_x, vol_text, curses.color_pair(vol_icon_color) | curses.A_BOLD)
-
-    def _clear_volume(self, stdscr: curses.window) -> None:
-        """Clear volume indicator"""
-        max_y, max_x = stdscr.getmaxyx()
-        bar_width = 20
-        start_y = 1
-        start_x = max_x - bar_width - 5
-
-        try:
-            width = bar_width + 10
-            clear_line = " " * width
-            stdscr.addstr(start_y, start_x - 5, clear_line, curses.color_pair(1))
         except curses.error:
             pass
 

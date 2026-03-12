@@ -22,13 +22,91 @@ locale.setlocale(locale.LC_NUMERIC, "C")
 # Python version check
 if sys.version_info < (3, 8):
     print("Error: Python 3.8 or higher is required")
+    print(f"Current Python version: {sys.version_info.major}.{sys.version_info.minor}")
     sys.exit(1)
+
+
+def check_dependencies() -> None:
+    """Check if all required dependencies are installed.
+
+    Provides helpful error messages with installation instructions for different distributions.
+    """
+    missing_deps = []
+    install_instructions = {
+        "mpv": {
+            "import": "mpv",  # python-mpv package imports as 'mpv'
+            "package": "python-mpv",
+            "arch": "sudo pacman -S python-mpv mpv",
+            "ubuntu": "sudo apt-get install python3-mpv mpv",
+            "fedora": "sudo dnf install python-mpv mpv",
+            "macos": "brew install mpv && pip install python-mpv",
+        },
+        "requests": {
+            "import": "requests",
+            "package": "requests",
+            "arch": "pip install requests",
+            "ubuntu": "pip install requests",
+            "fedora": "pip install requests",
+            "macos": "pip install requests",
+        },
+        "dbus_next": {
+            "import": "dbus_next",  # dbus-next package imports as 'dbus_next'
+            "package": "dbus-next",
+            "arch": "pip install dbus-next",
+            "ubuntu": "pip install dbus-next",
+            "fedora": "pip install dbus-next",
+            "macos": "Not required on macOS",
+            "optional": True,
+        },
+    }
+
+    # Check each dependency
+    for dep_name, dep_info in install_instructions.items():
+        try:
+            __import__(dep_info["import"])
+        except ImportError:
+            missing_deps.append((dep_name, dep_info))
+
+    # Report missing dependencies
+    if missing_deps:
+        print("\n" + "=" * 60)
+        print("ERROR: Missing required dependencies")
+        print("=" * 60)
+
+        for dep_name, dep_info in missing_deps:
+            optional_marker = " (optional)" if dep_info.get("optional") else ""
+            package_name = dep_info.get("package", dep_info["import"])
+            print(f"\n❌ {dep_name}{optional_marker}")
+            print(f"   Required module: {package_name}")
+            print("   Installation instructions:")
+            print(f"   - Arch Linux:   {dep_info['arch']}")
+            print(f"   - Ubuntu/Debian: {dep_info['ubuntu']}")
+            print(f"   - Fedora:       {dep_info['fedora']}")
+            if dep_info.get("macos"):
+                print(f"   - macOS:        {dep_info['macos']}")
+
+        required_missing = [d for d, info in missing_deps if not info.get("optional")]
+        if required_missing:
+            print("\n" + "=" * 60)
+            print("Install missing dependencies and try again.")
+            print("=" * 60)
+            sys.exit(1)
+        else:
+            print("\n" + "=" * 60)
+            print("Note: Optional dependencies are missing. The app will work,")
+            print("but some features may be disabled.")
+            print("=" * 60)
+            input("\nPress Enter to continue...")
+
+
+# Check dependencies before importing
+check_dependencies()
 
 import curses
 import mpv
 import requests
 
-from somafm_tui.config import load_config, save_config, validate_config, CONFIG_DIR, CONFIG_FILE
+from somafm_tui.config import load_config, save_config, validate_config, CONFIG_DIR, CONFIG_FILE, set_allowed_themes
 from somafm_tui.themes import get_color_themes, get_theme_names, init_custom_colors, apply_theme
 from somafm_tui.models import TrackMetadata, Channel, AppConfig
 from somafm_tui.channels import (
@@ -79,34 +157,34 @@ def setup_logging() -> None:
     )
 
 
-def check_mpv() -> bool:
-    """Check if MPV is available."""
-    try:
-        import subprocess
-
-        result = subprocess.run(
-            ["mpv", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
-
-
 def _create_signal_handler(player_instance: "SomaFMPlayer"):
     """Create a signal handler closure for the given player instance.
-    
+
+    Uses weakref to prevent reference cycles and memory leaks.
+
     Args:
         player_instance: The SomaFMPlayer instance to handle signals for
-        
+
     Returns:
         Signal handler function
     """
+    import weakref
+
+    # Use weak reference to avoid reference cycles
+    weak_player = weakref.ref(player_instance)
+
     def handler(signum, frame):
         """Handle termination signals."""
         signal_name = signal.Signals(signum).name
         logging.info(f"Received {signal_name}, shutting down...")
-        player_instance._signal_received = True
-        player_instance.running = False
+
+        # Get the actual object from weak reference
+        player = weak_player()
+        if player is not None:
+            player._signal_received = True
+            player.running = False
+        # If player is None, it was already garbage collected - nothing to do
+
     return handler
 
 
@@ -130,13 +208,10 @@ class SomaFMPlayer:
         setup_logging()
         self._setup_signal_handlers()
 
-        if not check_mpv():
-            print("Error: MPV player is not installed or not in PATH")
-            print("Please install MPV using your package manager:")
-            print("  - Arch Linux: sudo pacman -S mpv")
-            print("  - Ubuntu/Debian: sudo apt-get install mpv")
-            print("  - Fedora: sudo dnf install mpv")
-            sys.exit(1)
+        # Dependencies already checked by check_dependencies() at module load
+        # Initialize allowed themes whitelist for security
+        theme_names = get_theme_names()
+        set_allowed_themes(set(theme_names))
 
         # Load configuration
         self.config = config if config is not None else validate_config(load_config())
@@ -223,6 +298,8 @@ class SomaFMPlayer:
             # Wire up MPRIS to playback controller
             self.playback.set_mpris_service(self.mpris_service)
 
+        except (ImportError, ModuleNotFoundError) as e:
+            logging.warning(f"MPRIS/D-Bus not available: {e}. Install dbus-next for media keys support.")
         except Exception as e:
             logging.error(f"Failed to start MPRIS service: {e}")
 
@@ -250,7 +327,16 @@ class SomaFMPlayer:
             self.channels = sort_channels_by_usage(channels, usage)
             save_channel_usage(CHANNEL_USAGE_FILE, usage)
 
+        except (ConnectionError, TimeoutError) as e:
+            logging.error(f"Network error fetching channels: {e}")
+            print(f"Error: Cannot connect to SomaFM API. Check your internet connection.")
+            sys.exit(1)
+        except (json.JSONDecodeError, IOError) as e:
+            logging.error(f"Error processing channel data: {e}")
+            print(f"Error: Failed to process channel data.")
+            sys.exit(1)
         except Exception as e:
+            logging.error(f"Unexpected error fetching channels: {e}")
             print(f"Error fetching channel list: {e}")
             sys.exit(1)
 
@@ -277,8 +363,10 @@ class SomaFMPlayer:
                     # Re-initialize components with loaded channels
                     if hasattr(self, 'state'):
                         self.state.channels = self.channels
-                except Exception as e:
+                except (json.JSONDecodeError, IOError) as e:
                     logging.error(f"Error processing loaded channels: {e}")
+                except Exception as e:
+                    logging.error(f"Unexpected error processing loaded channels: {e}")
 
     def _setup_metadata_observer(self) -> None:
         """Setup MPV metadata observer."""
@@ -429,8 +517,8 @@ class SomaFMPlayer:
                     for name in dirs:
                         os.rmdir(os.path.join(root, name))
                 os.rmdir(TEMP_DIR)
-            except Exception as e:
-                logging.error(f"Error cleaning up temp directory: {e}")
+            except (IOError, OSError, PermissionError) as e:
+                logging.warning(f"Error cleaning up temp directory: {e}")
 
     def run(self) -> None:
         """Run main application loop."""
@@ -493,6 +581,9 @@ class SomaFMPlayer:
                         time.sleep(0.05)
                         continue
 
+            except (KeyboardInterrupt, SystemExit):
+                # Normal shutdown on user request or signal
+                logging.info("Application shutdown requested")
             except Exception as e:
                 self.had_error = True
                 logging.error(f"Application error: {e}")
@@ -502,6 +593,9 @@ class SomaFMPlayer:
 
         try:
             curses.wrapper(main)
+        except (KeyboardInterrupt, SystemExit):
+            # Normal shutdown
+            logging.info("Application terminated by user")
         except Exception as e:
             self.had_error = True
             logging.error(f"Fatal error: {e}")
@@ -527,16 +621,15 @@ def main() -> None:
     ensure_directories()
     setup_logging()
 
-    if not check_mpv():
-        print("Error: MPV player is not installed or not in PATH")
-        print("Please install MPV using your package manager:")
-        print("  - Arch Linux: sudo pacman -S mpv")
-        print("  - Ubuntu/Debian: sudo apt-get install mpv")
-        print("  - Fedora: sudo dnf install mpv")
-        sys.exit(1)
-
+    # Dependencies already checked by check_dependencies() at module load
     # Load configuration
     config = validate_config(load_config())
+
+    # Initialize allowed themes whitelist for security (CLI mode)
+    from somafm_tui.themes import get_theme_names
+    from somafm_tui.config import set_allowed_themes
+    theme_names = get_theme_names()
+    set_allowed_themes(set(theme_names))
 
     # Apply CLI overrides to config
     if args.theme:
@@ -556,7 +649,16 @@ def main() -> None:
         valid_ids = {ch.id for ch in channels}
         usage = clean_channel_usage(usage, valid_ids)
         channels = sort_channels_by_usage(channels, usage)
+    except (ConnectionError, TimeoutError) as e:
+        logging.error(f"Network error fetching channels: {e}")
+        print(f"Error: Cannot connect to SomaFM API. Check your internet connection.")
+        sys.exit(1)
+    except (json.JSONDecodeError, IOError) as e:
+        logging.error(f"Error processing channel data: {e}")
+        print(f"Error: Failed to process channel data.")
+        sys.exit(1)
     except Exception as e:
+        logging.error(f"Unexpected error fetching channels: {e}")
         print(f"Error fetching channel list: {e}")
         sys.exit(1)
 

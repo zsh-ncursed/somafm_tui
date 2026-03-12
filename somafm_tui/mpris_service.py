@@ -319,6 +319,12 @@ class MPRISService:
             await self.bus.request_name(DBUS_NAME)
             logging.info("MPRIS service started")
             return True
+        except (ConnectionError, TimeoutError) as e:
+            logging.error(f"D-Bus connection failed: {e}")
+            return False
+        except (ValueError, TypeError) as e:
+            logging.error(f"D-Bus configuration error: {e}")
+            return False
         except Exception as e:
             logging.error(f"Failed to start MPRIS service: {e}")
             return False
@@ -329,6 +335,8 @@ class MPRISService:
             try:
                 await self.bus.release_name(DBUS_NAME)
                 self.bus.disconnect()
+            except (ConnectionError, TimeoutError) as e:
+                logging.warning(f"D-Bus disconnection error: {e}")
             except Exception as e:
                 logging.error(f"Error stopping MPRIS service: {e}")
 
@@ -350,5 +358,9 @@ def run_mpris_loop(mpris_service: MPRISService) -> None:
         asyncio.set_event_loop(loop)
         loop.run_until_complete(mpris_service.start())
         loop.run_forever()
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("MPRIS loop terminated by user")
+    except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+        logging.error(f"MPRIS async error: {e}")
     except Exception as e:
         logging.error(f"MPRIS loop error: {e}")

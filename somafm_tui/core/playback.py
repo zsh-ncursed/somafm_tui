@@ -92,7 +92,7 @@ class PlaybackController:
             # Get stream URL
             stream_url = channel.get_stream_url()
             if not stream_url:
-                raise Exception(f"No MP3 stream found for channel {channel.title}")
+                raise ValueError(f"No MP3 stream found for channel {channel.title}")
 
             # Stop current playback
             if self.player:
@@ -130,6 +130,16 @@ class PlaybackController:
             if self._on_playback_change:
                 self._on_playback_change()
 
+        except (json.JSONDecodeError, IOError) as e:
+            logging.error(f"Error saving channel usage: {e}")
+            self.is_playing = False
+            self.is_paused = False
+            self.current_channel = None
+        except ValueError as e:
+            logging.error(f"Invalid channel configuration: {e}")
+            self.is_playing = False
+            self.is_paused = False
+            self.current_channel = None
         except Exception as e:
             logging.error(f"Error playing channel: {e}")
             self.is_playing = False

@@ -74,8 +74,8 @@ def load_themes_raw() -> Dict[str, Dict[str, Any]]:
                 "is_light": theme_data.get("is_light", False),
             }
         return themes
-    
-    except Exception as e:
+
+    except (json.JSONDecodeError, IOError, OSError) as e:
         logging.error(f"Failed to load themes: {e}")
         # Return minimal default theme
         return {
@@ -122,7 +122,7 @@ def load_themes() -> Dict[str, Dict[str, Any]]:
         _theme_cache = themes
         return themes
 
-    except Exception as e:
+    except (json.JSONDecodeError, IOError, OSError) as e:
         logging.error(f"Failed to load themes: {e}")
         # Return minimal default theme
         _theme_cache = {
@@ -130,6 +130,23 @@ def load_themes() -> Dict[str, Dict[str, Any]]:
                 "name": "Default Dark",
                 "bg_color": curses.COLOR_BLACK,
                 "header": curses.COLOR_CYAN,
+                "selected": curses.COLOR_GREEN,
+                "info": curses.COLOR_YELLOW,
+                "metadata": curses.COLOR_MAGENTA,
+                "instructions": curses.COLOR_BLUE,
+                "favorite": curses.COLOR_RED,
+                "is_light": False,
+            }
+        }
+        return _theme_cache
+    except curses.error as e:
+        logging.error(f"Curses color initialization failed: {e}")
+        # Return minimal default theme with standard curses colors
+        _theme_cache = {
+            "default": {
+                "name": "Default Dark",
+                "bg_color": curses.COLOR_BLACK,
+                "header": curses.COLOR_WHITE,
                 "selected": curses.COLOR_GREEN,
                 "info": curses.COLOR_YELLOW,
                 "metadata": curses.COLOR_MAGENTA,

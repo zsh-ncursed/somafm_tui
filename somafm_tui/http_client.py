@@ -1,9 +1,11 @@
 """HTTP client module with retry logic and connection pooling.
 
-Uses a singleton HttpClient class with ThreadPoolExecutor for non-blocking requests.
+Uses a module-level singleton with ThreadPoolExecutor for non-blocking requests.
+Thread-safe initialization with explicit lifecycle management for testability.
 """
 
 import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Any, Dict, Optional, Callable
@@ -16,17 +18,17 @@ DEFAULT_TIMEOUT = 10  # seconds
 DEFAULT_RETRIES = 3
 DEFAULT_BACKOFF_FACTOR = 0.5
 
+# Module-level singleton with thread-safe initialization
+_http_client: Optional["HttpClient"] = None
+_http_client_lock = threading.Lock()
+
 
 class HttpClient:
     """HTTP client with connection pooling and retry logic.
 
-    Implements lazy initialization and singleton pattern for the session.
-    Thread-safe for read operations after initialization.
-    Uses ThreadPoolExecutor for async requests.
+    Uses module-level singleton pattern with explicit lifecycle management.
+    Thread-safe initialization via double-checked locking.
     """
-
-    _instance: Optional["HttpClient"] = None
-    _executor: Optional[ThreadPoolExecutor] = None
 
     def __init__(
         self,
@@ -40,35 +42,56 @@ class HttpClient:
         self.timeout = timeout
         self._session: Optional[requests.Session] = None
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
-    
+        self._lock = threading.Lock()
+
     @classmethod
     def get_instance(cls) -> "HttpClient":
         """Get or create the singleton HttpClient instance.
-        
+
+        Thread-safe using double-checked locking pattern.
+
         Returns:
             HttpClient instance with configured session
         """
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
-    
+        global _http_client, _http_client_lock
+
+        # First check (without lock) for performance
+        if _http_client is not None:
+            return _http_client
+
+        # Double-checked locking
+        with _http_client_lock:
+            if _http_client is None:
+                _http_client = cls()
+            return _http_client
+
     @classmethod
     def reset_instance(cls) -> None:
-        """Reset the singleton instance (useful for testing)."""
-        if cls._instance is not None:
-            if cls._instance._session is not None:
-                cls._instance._session.close()
-            cls._instance = None
-    
+        """Reset the singleton instance (useful for testing).
+
+        Thread-safe. Closes session and shuts down executor.
+        """
+        global _http_client, _http_client_lock
+
+        with _http_client_lock:
+            if _http_client is not None:
+                if _http_client._session is not None:
+                    _http_client._session.close()
+                _http_client.shutdown()
+                _http_client = None
+
     def get_session(self) -> requests.Session:
         """Get or create the requests session with connection pooling.
-        
+
+        Thread-safe lazy initialization.
+
         Returns:
             Configured requests.Session instance
         """
-        if self._session is None:
-            self._session = self._create_session()
-        return self._session
+        with self._lock:
+            if self._session is None:
+                self._session = self._create_session()
+            return self._session
     
     def _create_session(self) -> requests.Session:
         """Create a new session with retry strategy and adapters.
@@ -336,6 +359,8 @@ def fetch_bytes_async(
 
 
 def shutdown_http() -> None:
-    """Shutdown HTTP client executor. Call before exiting."""
-    if HttpClient._instance:
-        HttpClient._instance.shutdown()
+    """Shutdown HTTP client executor. Call before exiting.
+
+    Thread-safe. Resets singleton state after shutdown.
+    """
+    HttpClient.reset_instance()

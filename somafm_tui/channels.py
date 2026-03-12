@@ -79,26 +79,24 @@ def fetch_channels_async(
     Fetch channels asynchronously from SomaFM API.
     Uses caching to reduce API load.
     Non-blocking: returns immediately with a Future.
-    
+
     Args:
         timeout: Request timeout in seconds
         cache_file: Path to cache file
         cache_max_age: Maximum age of cache in seconds
         callback: Optional callback function to call with result
-        
+
     Returns:
         Future object that will contain the list of channels
-        
+
     Example:
         future = fetch_channels_async(callback=on_channels_loaded)
         # UI remains responsive while fetching...
         channels = future.result()  # Blocks until complete
     """
-    from concurrent.futures import ThreadPoolExecutor
-    
-    # Use a temporary executor for this task
-    executor = ThreadPoolExecutor(max_workers=1)
-    
+    # Use HttpClient's singleton executor for consistency and proper resource management
+    from .http_client import HttpClient
+
     def _fetch():
         try:
             channels = fetch_channels(
@@ -109,13 +107,24 @@ def fetch_channels_async(
             if callback:
                 callback(channels)
             return channels
+        except (ConnectionError, TimeoutError) as e:
+            logging.error(f"Network error fetching channels: {e}")
+            if callback:
+                callback(None)
+            return None
+        except (json.JSONDecodeError, IOError) as e:
+            logging.error(f"Error processing channel data: {e}")
+            if callback:
+                callback(None)
+            return None
         except Exception as e:
             logging.error(f"Async fetch_channels failed: {e}")
             if callback:
                 callback(None)
             return None
-    
-    return executor.submit(_fetch)
+
+    # Submit to singleton executor (will be properly shut down on application exit)
+    return HttpClient.get_instance()._executor.submit(_fetch)
 
 
 def load_channel_usage(usage_file: str) -> Dict[str, int]:

@@ -5,6 +5,117 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-12
+
+### Added
+- **Dependency checking at startup** — Comprehensive dependency validation with helpful installation instructions:
+  - Checks for `mpv`, `requests`, and `dbus_next` before importing
+  - Provides distribution-specific installation commands (Arch, Ubuntu, Fedora, macOS)
+  - Distinguishes between required and optional dependencies
+  - Graceful degradation when optional dependencies are missing
+
+- **Enhanced configuration validation** — Secure configuration handling:
+  - Strict type checking with explicit conversion (no dynamic eval)
+  - Range validation for numeric values (volume: 0-100)
+  - Whitelist validation for theme names
+  - String sanitization and length limits (prevents DoS)
+  - Unknown configuration keys are ignored for security
+
+- **Improved error handling** — Specific exception handling throughout the codebase:
+  - Replaced bare `except Exception` with specific exception types
+  - Better error messages for network, file I/O, and configuration errors
+  - Proper logging of error context for debugging
+  - Graceful fallback to defaults on configuration errors
+
+- **Thread-safe HTTP client** — Singleton pattern with proper resource management:
+  - Double-checked locking for thread-safe initialization
+  - Module-level singleton with explicit lifecycle management
+  - Thread-safe session and executor management
+  - Proper cleanup on application shutdown
+
+- **Bitrate utilities module** — Centralized bitrate handling:
+  - New `bitrate_utils.py` with constants and helper functions
+  - Eliminated code duplication in bitrate mapping
+  - Consistent bitrate extraction from URLs and playlist filenames
+  - Reusable utilities for future development
+
+### Changed
+- **Removed vertical separator line** — Clean UI without divider between channel list and playback panel:
+  - Removed vertical line from `_full_redraw()` in `ui.py`
+  - Updated instructions separator from `" | "` to `"  "` (double space)
+  - Improved instruction area clearing to prevent artifacts
+
+- **Signal handler memory leak fix** — Using `weakref` for signal handlers:
+  - Signal handlers now use weak references to prevent reference cycles
+  - Proper garbage collection of player instances
+  - Safe handling when player is already garbage collected
+
+- **Async channel fetching** — Using shared HTTP client executor:
+  - `fetch_channels_async()` now uses singleton executor from `HttpClient`
+  - Eliminates resource leak from creating executors without cleanup
+  - Consistent resource management across the application
+
+- **Dead code removal** — Removed unused functions and methods:
+  - Removed `_supports_emoji()` (always returned False, never called)
+  - Removed `_display_volume()` and `_clear_volume()` (replaced by `_draw_volume_indicator()`)
+  - Removed `check_mpv()` (replaced by comprehensive `check_dependencies()`)
+
+### Fixed
+- **MPV dependency check** — Fixed false positive in dependency detection:
+  - Corrected import name from `python-mpv` to `mpv` (package vs module name)
+  - Display name shows `python-mpv` for clarity
+  - Proper detection of system-installed MPV bindings
+
+- **Configuration validation bypass** — Prevented potential security issues:
+  - Explicit type conversion instead of `expected_type(value)`
+  - Range validation for all numeric values
+  - Whitelist validation prevents arbitrary theme injection
+
+### Technical
+- Modified `somafm_tui/player.py`:
+  - Added `check_dependencies()` function with detailed error reporting
+  - Removed `check_mpv()` function (redundant)
+  - Updated signal handler to use `weakref.ref()`
+  - Initialize allowed themes whitelist for security
+  - Better exception handling in channel fetching
+
+- Modified `somafm_tui/config.py`:
+  - Added `CONFIG_VALIDATORS` with explicit constraints
+  - Added `ALLOWED_THEMES` whitelist mechanism
+  - Rewrote `validate_config()` with strict validation
+  - Added `set_allowed_themes()` for runtime whitelist setup
+
+- Modified `somafm_tui/http_client.py`:
+  - Module-level singleton with `_http_client_lock`
+  - Thread-safe `get_instance()` with double-checked locking
+  - Thread-safe `reset_instance()` for testing
+  - Per-instance lock for session initialization
+  - Updated `shutdown_http()` to use `reset_instance()`
+
+- Modified `somafm_tui/channels.py`:
+  - `fetch_channels_async()` uses `HttpClient.get_instance()._executor`
+  - Removed local `ThreadPoolExecutor` creation
+  - Better exception handling with specific types
+
+- Modified `somafm_tui/models.py`:
+  - Import bitrate utilities from `bitrate_utils`
+  - Use `extract_bitrate_from_url()` in `from_api_response()`
+  - Use `extract_bitrate_from_playlist_filename()` in `get_available_bitrates()`
+  - Use `map_label_to_bitrate_numbers()` in `get_stream_url_for_bitrate()`
+  - Use `get_bitrate_sort_key()` for sorting
+
+- New file `somafm_tui/bitrate_utils.py`:
+  - Constants: `BITRATE_LABELS`, `BITRATE_NUM_TO_LABEL`, `LABEL_TO_BITRATE_NUM`, etc.
+  - Functions: `extract_bitrate_from_url()`, `extract_bitrate_from_playlist_filename()`, `map_bitrate_number_to_label()`, etc.
+
+- Modified `somafm_tui/ui.py`:
+  - Removed vertical separator line from `_full_redraw()`
+  - Changed instructions separator from `" | "` to `"  "`
+  - Improved instruction area clearing with explicit spaces
+  - Removed unused `_supports_emoji()`, `_display_volume()`, `_clear_volume()`
+
+---
+
 ## [0.5.12] - 2026-03-11
 
 ### Fixed

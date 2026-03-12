@@ -2,7 +2,7 @@
 
 import configparser
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 HOME = os.path.expanduser("~")
 CONFIG_DIR = os.path.join(HOME, ".somafm_tui")
@@ -37,6 +37,52 @@ CONFIG_COMMENTS = {
     "dbus_cache_metadata_artworks": "Cache channel picture locally for D-Bus (true/false)",
     "volume": "Default volume (0-100)",
 }
+
+# Validation constraints for configuration values
+CONFIG_VALIDATORS = {
+    "volume": {
+        "type": int,
+        "min": 0,
+        "max": 100,
+        "default": 100,
+    },
+    "theme": {
+        "type": str,
+        "default": "default",
+    },
+    "dbus_allowed": {
+        "type": bool,
+        "default": False,
+    },
+    "dbus_send_metadata": {
+        "type": bool,
+        "default": False,
+    },
+    "dbus_send_metadata_artworks": {
+        "type": bool,
+        "default": False,
+    },
+    "dbus_cache_metadata_artworks": {
+        "type": bool,
+        "default": True,
+    },
+}
+
+# Allowed themes whitelist (loaded dynamically from themes.json)
+# This is set at runtime to prevent arbitrary theme names
+ALLOWED_THEMES: Optional[Set[str]] = None
+
+
+def set_allowed_themes(themes: Set[str]) -> None:
+    """Set allowed themes whitelist.
+
+    Call this after loading themes to restrict theme configuration values.
+
+    Args:
+        themes: Set of allowed theme names
+    """
+    global ALLOWED_THEMES
+    ALLOWED_THEMES = themes
 
 
 def get_default_config() -> Dict[str, Any]:
@@ -77,7 +123,8 @@ def load_config() -> Dict[str, Any]:
                     except (ValueError, TypeError):
                         pass  # Keep default value
 
-    except Exception:
+    except (configparser.Error, IOError, OSError) as e:
+        logging.warning(f"Error reading config file: {e}")
         config = get_default_config()
 
     return config
@@ -117,24 +164,83 @@ def update_config(key: str, value: Any, config: Optional[Dict[str, Any]] = None)
 
 
 def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate configuration values."""
+    """Validate configuration values with strict type checking and range validation.
+
+    Security: Uses explicit type conversion instead of dynamic eval-like patterns.
+    Validates ranges for numeric values and whitelists for string values.
+
+    Args:
+        config: Configuration dictionary to validate
+
+    Returns:
+        Validated configuration dictionary with safe values
+    """
     validated = get_default_config()
 
     for key, default_value in DEFAULT_CONFIG.items():
-        if key in config:
-            value = config[key]
-            expected_type = CONFIG_TYPES.get(key, type(default_value))
+        if key not in config:
+            continue
 
-            try:
-                # Validate type
-                if expected_type == bool and isinstance(value, str):
-                    value = value.lower() in ("true", "1", "yes", "on")
+        value = config[key]
+        validator = CONFIG_VALIDATORS.get(key)
 
-                validated[key] = expected_type(value)
-            except (ValueError, TypeError):
-                validated[key] = default_value
+        if validator is None:
+            # Unknown config key - skip for security
+            continue
 
-    # Additional validation
-    validated["volume"] = max(0, min(100, validated["volume"]))
+        try:
+            # Safe boolean conversion
+            if validator["type"] == bool:
+                if isinstance(value, bool):
+                    validated[key] = value
+                elif isinstance(value, str):
+                    validated[key] = value.lower() in ("true", "1", "yes", "on")
+                elif isinstance(value, int):
+                    validated[key] = value != 0
+                else:
+                    validated[key] = validator.get("default", default_value)
+
+            # Safe integer conversion with range validation
+            elif validator["type"] == int:
+                if isinstance(value, int) and not isinstance(value, bool):
+                    int_value = value
+                elif isinstance(value, str):
+                    int_value = int(value)
+                else:
+                    int_value = validator.get("default", default_value)
+
+                # Range validation
+                min_val = validator.get("min")
+                max_val = validator.get("max")
+
+                if min_val is not None and int_value < min_val:
+                    int_value = min_val
+                if max_val is not None and int_value > max_val:
+                    int_value = max_val
+
+                validated[key] = int_value
+
+            # Safe string validation with optional whitelist
+            elif validator["type"] == str:
+                if isinstance(value, str):
+                    # Sanitize string value (prevent injection attacks)
+                    sanitized = value.strip()
+
+                    # Check against whitelist if available
+                    if key == "theme" and ALLOWED_THEMES is not None:
+                        if sanitized not in ALLOWED_THEMES:
+                            # Invalid theme - use default
+                            validated[key] = validator.get("default", default_value)
+                        else:
+                            validated[key] = sanitized
+                    else:
+                        # Limit string length to prevent DoS
+                        validated[key] = sanitized[:100]
+                else:
+                    validated[key] = str(value)
+
+        except (ValueError, TypeError, AttributeError):
+            # Invalid value - use default
+            validated[key] = validator.get("default", default_value)
 
     return validated
