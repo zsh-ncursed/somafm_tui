@@ -35,6 +35,8 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+pytest.xml
+.pytest_cache/
 
 # OS
 .DS_Store
@@ -42,7 +44,6 @@ Thumbs.db
 
 # Application
 *.log
-tests/
 
 # Documentation (auto-generated)
 docs/

@@ -1,182 +1,182 @@
-# GitHub Actions CI/CD
+# GitHub Workflows
 
-This project uses GitHub Actions for continuous integration and deployment.
+## Обзор
+
+Эта директория содержит GitHub Actions workflows для автоматизации CI/CD.
 
 ## Workflows
 
-### 1. CI (`.github/workflows/ci.yml`)
+### 1. CI (`ci.yml`)
 
-Runs on every push and pull request to `main` branch.
+**Когда запускается:**
+- Push в ветку `main`
+- Pull Request в `main`
+- Создание релиза (release created)
 
-**What it does:**
-- Tests on Python 3.8–3.12
-- Installs system dependencies (MPV)
-- Checks Python syntax
-- Verifies package can be imported
+**Что делает:**
+```
+✅ Установка Python 3.8-3.12 (matrix)
+✅ Установка зависимостей (mpv, libmpv-dev)
+✅ Проверка синтаксиса Python
+✅ Проверка импорта пакета
+✅ Запуск всех тестов (pytest)
+✅ Отчёт о покрытии (требуется 60%+)
+✅ (Опционально) Загрузка в Codecov
+```
 
-### 2. Publish to AUR (`.github/workflows/publish-aur.yml`)
-
-Runs automatically when a GitHub release is published.
-
-**What it does:**
-- Validates PKGBUILD version matches the release tag
-- Updates the AUR package automatically
+**Требования:**
+- Тесты должны проходить на всех версиях Python
+- Покрытие кода ≥ 60%
 
 ---
 
-## Setup Instructions
+### 2. Publish to PyPI (`publish.yml`)
 
-### Required Secrets
+**Когда запускается:**
+- Изменение `pyproject.toml` в ветке `main`
+- Ручной запуск (workflow_dispatch)
 
-To enable automatic AUR deployment, configure these secrets in GitHub repository settings:
+**Что делает:**
+```
+✅ Запуск тестов (как в CI)
+✅ Сборка wheel и source tarball
+✅ Публикация на PyPI
+✅ Подпись Sigstore
+✅ Загрузка на GitHub Release
+```
 
-**Settings → Secrets and variables → Actions → New repository secret:**
-
-| Secret Name | Description | Value |
-|-------------|-------------|-------|
-| `AUR_USERNAME` | Your AUR username | `zsh-ncursed` |
-| `AUR_EMAIL` | Your email for AUR commits | `zsh.ncursed@gmail.com` |
-| `AUR_SSH_PRIVATE_KEY` | SSH private key for AUR access | See below |
-
-### Generate SSH Key for AUR
-
-1. **Generate SSH key:**
-   ```bash
-   ssh-keygen -t ed25519 -C "aur-somafm_tui" -f ~/.ssh/aur_github_actions
-   ```
-
-2. **Add public key to AUR:**
-   - Login to https://aur.archlinux.org
-   - Go to "SSH Keys" in your account settings
-   - Add the content of `~/.ssh/aur_github_actions.pub`
-
-3. **Add private key to GitHub secrets:**
-   ```bash
-   cat ~/.ssh/aur_github_actions | gh secret set AUR_SSH_PRIVATE_KEY
-   ```
-   
-   Or manually: Settings → Secrets → Actions → New repository secret
+**Важно:** Публикация блокируется, если тесты не прошли.
 
 ---
 
-## Release Process
+### 3. Publish to AUR (`publish-aur.yml`)
 
-### 1. Update Version
+**Когда запускается:**
+- Push тега версии (v*)
+- Публикация релиза на GitHub
+- Ручной запуск (workflow_dispatch)
 
-Update version in `PKGBUILD`:
-```bash
-pkgver=0.4.5
-pkgrel=1
+**Что делает:**
+```
+✅ Запуск тестов (как в CI)
+✅ Валидация PKGBUILD
+✅ Обновление pkgver
+✅ Публикация в AUR через SSH
 ```
 
-Update `source` to use the new tag:
-```bash
-source=("git+https://github.com/zsh-ncursed/somafm_tui.git#tag=v0.4.5")
-```
+**Важно:** Публикация блокируется, если тесты не прошли.
 
-### 2. Update CHANGELOG
-
-Add new version section to `CHANGELOG.md`.
-
-### 3. Commit and Push
-
-```bash
-git add PKGBUILD CHANGELOG.md
-git commit -m "release: version 0.4.5"
-git push origin main
-```
-
-### 4. Create Git Tag
-
-```bash
-git tag -a v0.4.5 -m "SomaFM TUI Player v0.4.5"
-git push origin v0.4.5
-```
-
-### 5. Publish GitHub Release
-
-1. Go to https://github.com/zsh-ncursed/somafm_tui/releases
-2. Click "Draft a new release"
-3. Select the tag `v0.4.5`
-4. Add release title and description
-5. Click "Publish release"
-
-**This triggers the AUR deployment workflow!**
-
-### 6. Verify AUR Update
-
-Check the package was updated:
-- https://aur.archlinux.org/packages/somafm_tui
-- Build logs: https://github.com/zsh-ncursed/somafm_tui/actions
+**Требуемые секреты:**
+- `AUR_SSH_PRIVATE_KEY` — SSH ключ для AUR
+- `AUR_USERNAME` — имя пользователя AUR
+- `AUR_EMAIL` — email для AUR
 
 ---
 
-## Manual AUR Update
+## Требования к тестам
 
-If automatic deployment fails, update manually:
+### Минимальное покрытие
+
+| Модуль | Требуемое покрытие |
+|--------|-------------------|
+| Core логика (config, models, timer) | ≥ 85% |
+| Сетевые модули (http_client, channels) | ≥ 85% |
+| Состояние (state, playback, input) | ≥ 85% |
+| UI (ui.py, player.py) | ≥ 15% (интеграция сложная) |
+| **Общее покрытие** | **≥ 60%** |
+
+### Запуск тестов локально
 
 ```bash
-# Clone AUR package
-git clone ssh://aur@aur.archlinux.org/somafm_tui.git
-cd somafm_tui
+# Все тесты
+pytest tests/ -v
 
-# Update from GitHub
-git remote add github https://github.com/zsh-ncursed/somafm_tui.git
-git fetch github
+# С покрытием
+pytest tests/ --cov=somafm_tui --cov-report=term-missing
 
-# Copy updated PKGBUILD
-cp /path/to/github/somafm_tui/PKGBUILD .
+# Проверка порога покрытия
+pytest tests/ --cov=somafm_tui --cov-fail-under=60
+```
 
-# Update .SRCINFO
-makepkg --printsrcinfo > .SRCINFO
+---
 
-# Commit and push
-git add PKGBUILD .SRCINFO
-git commit -m "Update to version 0.4.5"
-git push
+## Добавление новых тестов
+
+1. Создайте файл `tests/test_<module>.py`
+2. Используйте фикстуры из `tests/conftest.py`
+3. Избегайте реальных сетевых вызовов (mock requests)
+4. Запустите локально перед коммитом
+
+### Пример теста
+
+```python
+# tests/test_example.py
+from somafm_tui.config import validate_config
+
+class TestConfig:
+    def test_valid_config(self, sample_config_dict):
+        """Should validate valid config without errors."""
+        # Arrange
+        config = sample_config_dict
+        
+        # Act & Assert (should not raise)
+        validate_config(config)
 ```
 
 ---
 
 ## Troubleshooting
 
-### Workflow Fails
+### Тесты не проходят в CI
 
-1. Check the Actions tab: https://github.com/zsh-ncursed/somafm_tui/actions
-2. Review the error logs
-3. Fix the issue and re-run
+1. Проверьте логи GitHub Actions
+2. Запустите тесты локально с той же версией Python
+3. Убедитесь, что все зависимости установлены
 
-### Version Mismatch
+### Покрытие ниже 60%
 
-Error: `PKGBUILD version does not match tag version`
+```bash
+# Узнать какие строки не покрыты
+pytest --cov=somafm_tui --cov-report=term-missing
 
-**Solution:** Update `pkgver` in PKGBUILD to match the release tag.
+# Добавить тесты для непокрытых строк
+```
 
-### SSH Key Issues
+### Ошибки импорта в CI
 
-Error: `Permission denied (publickey)`
-
-**Solution:**
-1. Verify SSH key is added to AUR account
-2. Verify secret is correctly set in GitHub
-3. Test SSH connection:
-   ```bash
-   ssh -T aur@aur.archlinux.org
-   ```
+Убедитесь, что:
+- Все импорты относительные (`from somafm_tui import ...`)
+- Нет циклических импортов
+- Все зависимости в `requirements.txt`
 
 ---
 
-## Local Testing
+## Версионирование
 
-Test the workflow locally before pushing:
+При релизе новой версии:
 
-```bash
-# Install act (https://github.com/nektos/act)
-brew install act
+1. Обновите версию в `pyproject.toml`:
+   ```toml
+   version = "0.7.0"  # SemVer: MAJOR.MINOR.PATCH
+   ```
 
-# Run CI workflow locally
-act push
+2. Обновите `CHANGELOG.md`
 
-# Run with specific job
-act -j test
-```
+3. Создайте тег:
+   ```bash
+   git tag v0.7.0
+   git push origin v0.7.0
+   ```
+
+4. GitHub Actions автоматически:
+   - Запустит тесты
+   - Опубликует на PyPI
+   - Опубликует в AUR
+   - Создаст релиз на GitHub
+
+---
+
+## Контакты
+
+- **Issues**: https://github.com/zsh-ncursed/somafm_tui/issues
+- **Discussions**: https://github.com/zsh-ncursed/somafm_tui/discussions

@@ -4,9 +4,9 @@
     "bg_color": "#fafafa",
     "header": "#e45649",
     "selected": "#383a42",
-    "info": "#50a14f",
+    "info": "#cb2431",
     "metadata": "#4078f2",
-    "instructions": "#0184bc",
+    "instructions": "#cb2431",
     "favorite": "#c18401",
     "is_light": true
   },
@@ -226,7 +226,7 @@
     "selected": "#00ff00",
     "info": "#ffff00",
     "metadata": "#ff00ff",
-    "instructions": "#0000ff",
+    "instructions": "#8888ff",
     "favorite": "#ff0000",
     "is_light": false
   }

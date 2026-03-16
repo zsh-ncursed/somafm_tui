@@ -5,6 +5,68 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-03-16
+
+### Added
+- **Reverse theme cycling** — New keyboard shortcut for theme navigation:
+  - Press `y` to cycle themes in reverse order
+  - Press `t` to cycle themes forward (existing)
+  - Updated help screen to show `t/y - Cycle theme (forward/back)`
+
+- **Dynamic theme reloading** — Themes now reload from `themes.json` without restart:
+  - Modified `themes.py` with `reload_themes()` function
+  - Colors update dynamically when switching themes
+  - Added `_update_color()` for runtime color updates
+  - Added `reset_theme_cache()` for debugging
+
+- **Enhanced visibility for light themes** — Improved text visibility:
+  - Removed `A_DIM` attribute from instructions on light themes
+  - Instructions now use `A_BOLD` for better visibility
+  - Statistics (listeners/bitrate) use `color_pair(3)` without `A_DIM`
+  - "Select a channel" message uses `color_pair(5)` without `A_DIM`
+
+- **Version display in help** — Help screen now shows application version:
+  - Header displays "SomaFM TUI v{version} - Keyboard Shortcuts"
+  - Version is pulled from `__init__.py`
+
+### Changed
+- **Theme color updates** — Improved default theme colors:
+  - Default Dark: `instructions` changed from `#0000ff` to `#8888ff` (lighter blue)
+  - One Light: `info` changed to match `instructions` color (`#cb2431`)
+
+- **Help screen improvements** — Better theme navigation documentation:
+  - Updated to show both `t` and `y` shortcuts
+  - Added version number to header
+
+### Fixed
+- **Theme caching issue** — Themes now properly reload from JSON file
+- **Visibility issues** — Text no longer uses `A_DIM` on light themes
+- **Version mismatch** — Synchronized version numbers across all files
+
+### Technical Changes
+- **Module updates**:
+  - `themes.py`: Added `reload_themes()`, `_update_color()`, `reset_theme_cache()`
+  - `state.py`: Added `cycle_theme_reverse()` method
+  - `input.py`: Added handling for `y` key
+  - `ui.py`: Updated `_display_instructions()`, `_display_help()`, `_display_playback_panel()`
+  - `player.py`: Simplified `init_colors()`, added `theme_name` to display call
+
+## [0.6.1] - 2026-03-15
+
+### Fixed
+- **Version bump** — Updated version from 0.6.0 to 0.6.1
+- **MPRIS memory leak** — Fixed daemon thread accumulation in artwork caching
+- **HTTP client shutdown** — Added proper `shutdown_http()` call in cleanup
+- **Error handling** — Improved exception handling in `fetch_channels_async`
+- **URL validation** — Added basic URL validation in `get_stream_url_for_bitrate`
+- **Magic numbers** — Replaced with named constants in `ui.py`
+- **Search input validation** — Added length limit and character filtering
+- **Type hints** — Added `get_executor()` method to `HttpClient`
+
+### Changed
+- **Dependencies** — Updated pyproject.toml version to 0.6.1
+- **Code quality** — Improved error logging with exception types
+
 ## [0.6.0] - 2026-03-12
 
 ### Added

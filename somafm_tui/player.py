@@ -7,7 +7,9 @@ Refactored architecture with separated concerns:
 - UIScreen: Display rendering
 """
 
+import json
 import os
+import shutil
 import sys
 import time
 import logging
@@ -106,7 +108,7 @@ import curses
 import mpv
 import requests
 
-from somafm_tui.config import load_config, save_config, validate_config, CONFIG_DIR, CONFIG_FILE, set_allowed_themes
+from somafm_tui.config import load_config, save_config, validate_config, CONFIG_DIR, CONFIG_FILE, HOME, set_allowed_themes
 from somafm_tui.themes import get_color_themes, get_theme_names, init_custom_colors, apply_theme
 from somafm_tui.models import TrackMetadata, Channel, AppConfig
 from somafm_tui.channels import (
@@ -141,15 +143,41 @@ TRACK_FAVORITES_FILE = os.path.join(CONFIG_DIR, "track_favorites.json")
 
 
 def ensure_directories() -> None:
-    """Create required directories."""
+    """Create required directories and migrate old config if needed."""
     os.makedirs(CONFIG_DIR, exist_ok=True)
     os.makedirs(TEMP_DIR, exist_ok=True)
     os.makedirs(CACHE_DIR, exist_ok=True)
+    
+    # Migrate from old ~/.somafm_tui to XDG ~/.config/somafm_tui
+    old_config_dir = os.path.join(HOME, ".somafm_tui")
+    if os.path.exists(old_config_dir) and old_config_dir != CONFIG_DIR:
+        _migrate_old_config(old_config_dir)
+
+
+def _migrate_old_config(old_dir: str) -> None:
+    """Migrate configuration files from old directory to new XDG location."""
+    files_to_migrate = [
+        "somafm.cfg",
+        "channel_favorites.json",
+        "channel_usage.json",
+        "track_favorites.json",
+    ]
+
+    for filename in files_to_migrate:
+        old_path = os.path.join(old_dir, filename)
+        new_path = os.path.join(CONFIG_DIR, filename)
+
+        if os.path.exists(old_path) and not os.path.exists(new_path):
+            try:
+                shutil.copy2(old_path, new_path)
+                logging.info(f"Migrated {filename} from {old_dir} to {CONFIG_DIR}")
+            except (IOError, OSError) as e:
+                logging.warning(f"Failed to migrate {filename}: {e}")
 
 
 def setup_logging() -> None:
     """Configure logging."""
-    os.makedirs(TEMP_DIR, exist_ok=True)
+    ensure_directories()
     logging.basicConfig(
         filename=os.path.join(TEMP_DIR, "somafm.log"),
         level=logging.DEBUG,
@@ -204,6 +232,7 @@ class SomaFMPlayer:
     ):
         self.had_error = False
         self._signal_received = False
+        self._data_lock = threading.Lock()  # Lock for thread-safe data access
         ensure_directories()
         setup_logging()
         self._setup_signal_handlers()
@@ -300,8 +329,8 @@ class SomaFMPlayer:
 
         except (ImportError, ModuleNotFoundError) as e:
             logging.warning(f"MPRIS/D-Bus not available: {e}. Install dbus-next for media keys support.")
-        except Exception as e:
-            logging.error(f"Failed to start MPRIS service: {e}")
+        except (OSError, IOError) as e:
+            logging.error(f"MPRIS service I/O error: {e}")
 
     def _fetch_channels(self, async_mode: bool = False) -> None:
         """Fetch channel list.
@@ -342,12 +371,12 @@ class SomaFMPlayer:
 
     def _fetch_channels_async(self) -> None:
         """Fetch channel list asynchronously (non-blocking).
-        
+
         Shows loading message and updates UI when complete.
         """
         # Start with empty channels, show loading message
         self.channels = []
-        
+
         def on_channels_loaded(channels_opt: Optional[List[Channel]]):
             """Callback when channels are loaded."""
             if channels_opt:
@@ -357,16 +386,18 @@ class SomaFMPlayer:
                     valid_ids = {ch.id for ch in channels_opt}
                     usage = clean_channel_usage(usage, valid_ids)
 
-                    self.channels = sort_channels_by_usage(channels_opt, usage)
-                    save_channel_usage(CHANNEL_USAGE_FILE, usage)
+                    # Thread-safe update of shared data
+                    with self._data_lock:
+                        self.channels = sort_channels_by_usage(channels_opt, usage)
+                        save_channel_usage(CHANNEL_USAGE_FILE, usage)
 
-                    # Re-initialize components with loaded channels
-                    if hasattr(self, 'state'):
-                        self.state.channels = self.channels
+                        # Re-initialize components with loaded channels
+                        if hasattr(self, 'state'):
+                            self.state.channels = self.channels
                 except (json.JSONDecodeError, IOError) as e:
                     logging.error(f"Error processing loaded channels: {e}")
-                except Exception as e:
-                    logging.error(f"Unexpected error processing loaded channels: {e}")
+                except (OSError, ValueError) as e:
+                    logging.error(f"Channel data error: {e}")
 
     def _setup_metadata_observer(self) -> None:
         """Setup MPV metadata observer."""
@@ -401,18 +432,10 @@ class SomaFMPlayer:
     def init_colors(self) -> None:
         """Initialize colors."""
         curses.start_color()
-        init_custom_colors()
-
+        
+        # Apply theme directly - this will reload themes from file and initialize colors
         theme_name = self.config.get("theme", "default")
-        themes = get_color_themes()
-
-        if theme_name not in themes:
-            theme_name = "default"
-
-        theme = themes[theme_name]
-        bg_color = theme["bg_color"]
-
-        apply_theme(theme_name, bg_color)
+        apply_theme(theme_name)
 
     def _display_interface(self) -> None:
         """Display the interface."""
@@ -464,6 +487,7 @@ class SomaFMPlayer:
             self.playback.is_playing,
             is_searching=self.state.is_searching,
             search_query=self.state.search_query,
+            theme_name=self.state._current_theme,
             show_help=self.state.show_help,
             current_bitrate=self.playback.current_bitrate,
         )
@@ -508,6 +532,10 @@ class SomaFMPlayer:
         """Clean up resources."""
         if self.player:
             self.player.terminate()
+
+        # Shutdown HTTP client executor
+        from somafm_tui.http_client import shutdown_http
+        shutdown_http()
 
         if not self.had_error and os.path.exists(TEMP_DIR):
             try:
@@ -584,9 +612,13 @@ class SomaFMPlayer:
             except (KeyboardInterrupt, SystemExit):
                 # Normal shutdown on user request or signal
                 logging.info("Application shutdown requested")
-            except Exception as e:
+            except (curses.error, OSError) as e:
                 self.had_error = True
-                logging.error(f"Application error: {e}")
+                logging.error(f"UI error: {e}")
+                raise
+            except (ValueError, TypeError) as e:
+                self.had_error = True
+                logging.error(f"Application configuration error: {e}")
                 raise
             finally:
                 self._cleanup()
@@ -596,9 +628,14 @@ class SomaFMPlayer:
         except (KeyboardInterrupt, SystemExit):
             # Normal shutdown
             logging.info("Application terminated by user")
-        except Exception as e:
+        except (curses.error, OSError) as e:
             self.had_error = True
-            logging.error(f"Fatal error: {e}")
+            logging.error(f"Fatal UI error: {e}")
+            print(f"An error occurred. Check logs at {os.path.join(TEMP_DIR, 'somafm.log')}")
+            sys.exit(1)
+        except (ValueError, TypeError) as e:
+            self.had_error = True
+            logging.error(f"Fatal configuration error: {e}")
             print(f"An error occurred. Check logs at {os.path.join(TEMP_DIR, 'somafm.log')}")
             sys.exit(1)
 
@@ -657,9 +694,9 @@ def main() -> None:
         logging.error(f"Error processing channel data: {e}")
         print(f"Error: Failed to process channel data.")
         sys.exit(1)
-    except Exception as e:
-        logging.error(f"Unexpected error fetching channels: {e}")
-        print(f"Error fetching channel list: {e}")
+    except (OSError, ValueError) as e:
+        logging.error(f"Channel data error: {e}")
+        print(f"Error: Invalid channel data.")
         sys.exit(1)
 
     # Handle list-channels
