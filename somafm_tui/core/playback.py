@@ -6,7 +6,7 @@ Manages audio playback including play, pause, stop, volume control, and bitrate 
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Tuple
 
 from ..models import Channel, TrackMetadata
 from ..mpris_service import MPRISService
@@ -241,7 +241,7 @@ class PlaybackController:
 
             logging.info(f"Switched to bitrate: {self.current_bitrate}")
 
-    def toggle_channel_favorite(self) -> tuple[bool, str]:
+    def toggle_channel_favorite(self) -> Tuple[bool, str]:
         """Toggle favorite status for selected channel.
 
         Returns:
@@ -268,7 +268,7 @@ class PlaybackController:
 
         return False, "Cannot toggle favorite"
 
-    def toggle_favorite_track(self) -> tuple[bool, str]:
+    def toggle_favorite_track(self) -> Tuple[bool, str]:
         """Add current track to favorites.
 
         Requires track metadata to be available.
