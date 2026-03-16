@@ -7,7 +7,7 @@ name = "somafm-tui"
 version = "0.6.2"
 description = "Terminal user interface for SomaFM internet radio"
 readme = "README.md"
-license = "MIT"
+license = { text = "MIT" }
 requires-python = ">=3.8"
 authors = [
     {name = "zsh-ncursed", email = "zsh.ncursed@gmail.com"}
