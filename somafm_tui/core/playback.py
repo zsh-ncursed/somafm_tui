@@ -3,6 +3,7 @@
 Manages audio playback including play, pause, stop, volume control, and bitrate cycling.
 """
 
+import json
 import logging
 import time
 from typing import Any, Dict, List, Optional, Callable
@@ -140,8 +141,8 @@ class PlaybackController:
             self.is_playing = False
             self.is_paused = False
             self.current_channel = None
-        except Exception as e:
-            logging.error(f"Error playing channel: {e}")
+        except (OSError, IOError) as e:
+            logging.error(f"Playback I/O error: {e}")
             self.is_playing = False
             self.is_paused = False
             self.current_channel = None

@@ -8,6 +8,10 @@ from typing import Any, Dict, List, Optional, Set
 from .models import TrackMetadata, Channel
 
 
+# Color pair constants for volume indicator
+VOLUME_BAR_COLOR_PAIR = 60  # Color pair for volume bar fill
+VOLUME_ICON_COLOR_PAIR = 61  # Color pair for volume icon and percentage
+
 # Icon functions - listeners/bitrate use ASCII, others use Unicode
 def get_listener_icon() -> str:
     """Get listener icon"""
@@ -108,7 +112,10 @@ class UIScreen:
         """
         import hashlib
         import time
-        
+
+        # Store current theme name for use in _display_instructions
+        self._current_theme_name = theme_name
+
         max_y, max_x = stdscr.getmaxyx()
         current_time = time.time()
 
@@ -167,10 +174,9 @@ class UIScreen:
 
         # Display volume indicator (always)
         self._handle_volume_display(stdscr)
-        
+
         # Show sleep timer countdown if active (always update)
-        if self.volume_display is not None or True:  # Always refresh sleep timer
-            stdscr.refresh()
+        stdscr.refresh()
 
         # Update cache
         self._prev_channels_hash = channels_hash
@@ -428,7 +434,8 @@ class UIScreen:
                         stdscr.clrtoeol()
                         text2 = "Select a channel and press Enter to start"
                         if len(text2) <= available_width:
-                            stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5) | curses.A_DIM)
+                            # Use same color as instructions (pair 5) without A_DIM for better visibility
+                            stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5))
                 except curses.error:
                     pass
             return
@@ -480,7 +487,8 @@ class UIScreen:
                     stats = " | ".join(stats_parts)
                     if len(stats) > available_width:
                         stats = stats[: available_width - 3] + "..."
-                    stdscr.addstr(start_y + 2, start_x, stats, curses.color_pair(5) | curses.A_DIM)
+                    # Use same style as instructions for consistency
+                    stdscr.addstr(start_y + 2, start_x, stats, curses.color_pair(3))
             except curses.error:
                 pass
 
@@ -531,7 +539,7 @@ class UIScreen:
                 "f - favorite",
                 "r - bitrate",
                 "s - sleep",
-                "t - theme",
+                "t/y - theme",
                 "PgUp/Dn - volume",
                 "q - quit",
             ]
@@ -568,12 +576,21 @@ class UIScreen:
             if current_line and len(lines) < available_lines:
                 lines.append(current_line)
 
+            # Determine if current theme is light - use different attributes for better visibility
+            from .themes import is_light_theme
+            theme_name = self._current_theme_name if hasattr(self, '_current_theme_name') else 'default'
+            is_light = is_light_theme(theme_name)
+            
+            # Don't use A_DIM for instructions - it makes text too faint on all themes
+            # Use bold attribute instead for better visibility
+            attr = curses.color_pair(5) | curses.A_BOLD
+
             for i, line in enumerate(lines):
                 if i >= available_lines:
                     break
                 y_pos = max_y - available_lines + i
                 padded_line = line.ljust(available_width)
-                stdscr.addstr(y_pos, 0, padded_line, curses.color_pair(5) | curses.A_DIM)
+                stdscr.addstr(y_pos, 0, padded_line, attr)
 
         except curses.error:
             pass
@@ -603,8 +620,9 @@ class UIScreen:
         start_x = max_x - bar_width - 5
 
         volume = self.volume_display
-        vol_bar_color = 60
-        vol_icon_color = 61
+        # Use named constants for color pairs
+        vol_bar_color = VOLUME_BAR_COLOR_PAIR
+        vol_icon_color = VOLUME_ICON_COLOR_PAIR
 
         # Draw speaker icon
         vol_icon = get_volume_icon()
@@ -753,8 +771,11 @@ class UIScreen:
 
     def _display_help(self, stdscr: curses.window, max_y: int, max_x: int) -> None:
         """Display help screen - drawn on main screen for proper cleanup."""
+        # Get version from package
+        from . import __version__
+        
         help_text = [
-            ("SomaFM TUI - Keyboard Shortcuts", "header"),
+            (f"SomaFM TUI v{__version__} - Keyboard Shortcuts", "header"),
             ("", ""),
             ("Navigation", "section"),
             ("  ↑/k  - Move up", "normal"),
@@ -778,7 +799,7 @@ class UIScreen:
             ("  s     - Set sleep timer", "normal"),
             ("", ""),
             ("Appearance", "section"),
-            ("  t     - Cycle theme", "normal"),
+            ("  t/y   - Cycle theme (forward/back)", "normal"),
             ("", ""),
             ("Other", "section"),
             ("  q     - Quit", "normal"),

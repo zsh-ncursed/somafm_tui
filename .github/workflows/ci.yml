@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Запуск тестов при создании релиза
+  release:
+    types: [created]
 
 jobs:
   test:
@@ -30,6 +33,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock
 
       - name: Check Python syntax
         run: |
@@ -39,3 +43,19 @@ jobs:
         run: |
           pip install -e .
           python -c "from somafm_tui.player import SomaFMPlayer; print('OK')"
+
+      - name: Run tests with pytest
+        run: |
+          pytest tests/ -v --tb=short
+
+      - name: Run tests with coverage report
+        run: |
+          pytest tests/ --cov=somafm_tui --cov-report=term-missing --cov-fail-under=60
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov (optional)
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true

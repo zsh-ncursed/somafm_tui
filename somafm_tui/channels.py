@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Set, Optional, Callable
 
+import requests
+
 from .models import Channel
 from .http_client import fetch_json, fetch_json_async
 
@@ -107,24 +109,33 @@ def fetch_channels_async(
             if callback:
                 callback(channels)
             return channels
-        except (ConnectionError, TimeoutError) as e:
-            logging.error(f"Network error fetching channels: {e}")
+        except (requests.RequestException, requests.Timeout) as e:
+            # Specific network errors
+            logging.error(f"Network error fetching channels: {type(e).__name__}: {e}")
             if callback:
                 callback(None)
             return None
         except (json.JSONDecodeError, IOError) as e:
-            logging.error(f"Error processing channel data: {e}")
+            # Data processing errors
+            logging.error(f"Error processing channel data: {type(e).__name__}: {e}")
+            if callback:
+                callback(None)
+            return None
+        except (OSError, ValueError) as e:
+            # Channel data validation errors
+            logging.error(f"Channel data error: {type(e).__name__}: {e}")
             if callback:
                 callback(None)
             return None
         except Exception as e:
-            logging.error(f"Async fetch_channels failed: {e}")
+            # Catch-all for unexpected errors with full traceback
+            logging.exception(f"Unexpected error fetching channels: {type(e).__name__}: {e}")
             if callback:
                 callback(None)
             return None
 
-    # Submit to singleton executor (will be properly shut down on application exit)
-    return HttpClient.get_instance()._executor.submit(_fetch)
+    # Submit to singleton executor using public method (will be properly shut down on application exit)
+    return HttpClient.get_instance().get_executor().submit(_fetch)
 
 
 def load_channel_usage(usage_file: str) -> Dict[str, int]:

@@ -5,6 +5,7 @@ import logging
 import os
 import hashlib
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Any, Dict
 
 import requests
@@ -70,6 +71,8 @@ class MediaPlayer2PlayerInterface(ServiceInterface):
         self._metadata: Dict[str, Any] = {}
         self._playback_rate = 1.0
         self._position = 0  # microseconds
+        # Thread pool for artwork caching (limited to 2 workers to prevent resource exhaustion)
+        self._artwork_executor = ThreadPoolExecutor(max_workers=2)
 
     @method()
     def Next(self) -> None:
@@ -252,10 +255,8 @@ class MediaPlayer2PlayerInterface(ServiceInterface):
         filepath = os.path.join(self.artworks_dir, filename)
 
         if not os.path.exists(filepath):
-            # Try async cache in background, but return URL immediately
-            thread = threading.Thread(target=self._async_cache_artwork, args=(artwork_url, filepath))
-            thread.daemon = True
-            thread.start()
+            # Try async cache in background using limited thread pool
+            self._artwork_executor.submit(self._async_cache_artwork, artwork_url, filepath)
             return artwork_url
 
         return filepath
@@ -277,8 +278,10 @@ class MediaPlayer2PlayerInterface(ServiceInterface):
         """Emit properties changed signal"""
         try:
             self.emit_properties_changed(changed_properties, [])
-        except Exception as e:
-            logging.error(f"Failed to emit properties changed signal: {e}")
+        except (ConnectionError, TimeoutError) as e:
+            logging.error(f"D-Bus emit properties failed: {e}")
+        except (OSError, IOError) as e:
+            logging.error(f"D-Bus I/O error: {e}")
 
 
 class MPRISService:
@@ -325,8 +328,8 @@ class MPRISService:
         except (ValueError, TypeError) as e:
             logging.error(f"D-Bus configuration error: {e}")
             return False
-        except Exception as e:
-            logging.error(f"Failed to start MPRIS service: {e}")
+        except (OSError, IOError) as e:
+            logging.error(f"D-Bus I/O error: {e}")
             return False
 
     async def stop(self) -> None:
@@ -337,8 +340,11 @@ class MPRISService:
                 self.bus.disconnect()
             except (ConnectionError, TimeoutError) as e:
                 logging.warning(f"D-Bus disconnection error: {e}")
-            except Exception as e:
-                logging.error(f"Error stopping MPRIS service: {e}")
+            except (OSError, IOError) as e:
+                logging.warning(f"D-Bus I/O error during stop: {e}")
+        # Shutdown artwork executor
+        if self.player_interface and hasattr(self.player_interface, '_artwork_executor'):
+            self.player_interface._artwork_executor.shutdown(wait=False)
 
     def update_playback_status(self, status: str) -> None:
         """Update playback status"""
@@ -362,5 +368,5 @@ def run_mpris_loop(mpris_service: MPRISService) -> None:
         logging.info("MPRIS loop terminated by user")
     except (asyncio.CancelledError, asyncio.TimeoutError) as e:
         logging.error(f"MPRIS async error: {e}")
-    except Exception as e:
-        logging.error(f"MPRIS loop error: {e}")
+    except (OSError, IOError) as e:
+        logging.error(f"MPRIS loop I/O error: {e}")

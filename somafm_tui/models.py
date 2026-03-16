@@ -1,5 +1,6 @@
 """Data types module"""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -132,6 +133,9 @@ class Channel:
         """Get stream URL for specific bitrate.
 
         Bitrate format: 'mp3:128k', 'aac:128k', etc.
+        
+        Returns:
+            Validated stream URL or None if not available
         """
         if ":" in bitrate:
             target_fmt, target_br = bitrate.split(":")
@@ -152,22 +156,50 @@ class Channel:
                 # Check if any of the bitrate numbers match
                 for num in alt_nums:
                     if num in url:
-                        return url
+                        # Basic URL validation
+                        if self._validate_url(url):
+                            return url
+                        logging.warning(f"Invalid URL format: {url}")
                 # Also accept default if no bitrate in URL
                 if url.endswith(".pls") and not re.search(r'\d{2,3}\.pls$', url):
-                    return url
+                    if self._validate_url(url):
+                        return url
 
         # Fallback to first playlist of target format
         for playlist in self.playlists:
             if playlist.get("format") == target_fmt:
-                return playlist.get("url")
+                url = playlist.get("url")
+                if self._validate_url(url):
+                    return url
 
         # Final fallback to any playlist
         for playlist in self.playlists:
-            if playlist.get("url"):
-                return playlist.get("url")
+            url = playlist.get("url")
+            if self._validate_url(url):
+                return url
 
         return None
+
+    def _validate_url(self, url: Optional[str]) -> bool:
+        """Basic URL validation.
+        
+        Args:
+            url: URL to validate
+            
+        Returns:
+            True if URL is valid, False otherwise
+        """
+        if not url:
+            return False
+        if not isinstance(url, str):
+            return False
+        # Basic URL format check
+        if not (url.startswith("http://") or url.startswith("https://")):
+            return False
+        # Check for minimum URL structure
+        if len(url) < 10:
+            return False
+        return True
 
     def get_bitrate_label(self) -> str:
         """Get human-readable bitrate label for current stream."""

@@ -247,6 +247,14 @@ class HttpClient:
         if self._executor:
             self._executor.shutdown(wait=True)
 
+    def get_executor(self) -> ThreadPoolExecutor:
+        """Get the ThreadPoolExecutor instance.
+        
+        Returns:
+            ThreadPoolExecutor instance for submitting async tasks
+        """
+        return self._executor
+
 
 # Convenience functions for backward compatibility
 # These use the singleton instance internally

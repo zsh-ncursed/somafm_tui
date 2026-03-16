@@ -148,8 +148,18 @@ class StateManager:
         self._notify_state_change()
 
     def add_search_char(self, char: str) -> None:
-        """Add character to search query."""
+        """Add character to search query.
+        
+        Limits search query length to prevent overflow and filters out
+        potentially problematic characters.
+        """
         if isinstance(char, str) and len(char) == 1 and char.isprintable():
+            # Limit search query length to 50 characters
+            if len(self.search_query) >= 50:
+                return
+            # Filter out control characters (except basic printable ASCII)
+            if ord(char) < 32 or ord(char) > 126:
+                return
             self.search_query += char
             self.current_index = 0
             self._notify_state_change()
@@ -296,7 +306,7 @@ class StateManager:
 
     def cycle_theme(self) -> str:
         """Cycle to next theme.
-        
+
         Returns:
             Name of the new theme
         """
@@ -308,6 +318,28 @@ class StateManager:
             next_index = 0
 
         self._current_theme = themes[next_index]
+        self.config["theme"] = self._current_theme
+        save_config(self.config)
+
+        if self._on_theme_change:
+            self._on_theme_change(self._current_theme)
+
+        return self._current_theme
+
+    def cycle_theme_reverse(self) -> str:
+        """Cycle to previous theme (in reverse order).
+
+        Returns:
+            Name of the new theme
+        """
+        themes = get_theme_names()
+        try:
+            current_index = themes.index(self._current_theme)
+            prev_index = (current_index - 1) % len(themes)
+        except ValueError:
+            prev_index = 0
+
+        self._current_theme = themes[prev_index]
         self.config["theme"] = self._current_theme
         save_config(self.config)
 

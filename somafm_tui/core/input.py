@@ -185,6 +185,14 @@ class InputHandler:
                 self.ui.show_notification(
                     self._stdscr, f"Theme: {theme_info.get('name', new_theme)}", timeout=1.0
                 )
+        elif key in ("y", "Y"):
+            # Cycle theme in reverse order
+            new_theme = self.state.cycle_theme_reverse()
+            if self._stdscr:
+                theme_info = self.state.get_theme_info()
+                self.ui.show_notification(
+                    self._stdscr, f"Theme: {theme_info.get('name', new_theme)}", timeout=1.0
+                )
 
         # Volume
         elif key in ("v", "V"):

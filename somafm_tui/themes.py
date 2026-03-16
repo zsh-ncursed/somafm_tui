@@ -49,6 +49,43 @@ def _get_color_id(hex_color: str) -> int:
     return color_id
 
 
+def _update_color(hex_color: str) -> int:
+    """Update or create a curses color ID for a hex color.
+    
+    Unlike _get_color_id, this function updates the color even if it already exists.
+    This is useful for theme changes without restarting the application.
+    
+    Returns:
+        Color ID for the hex color
+    """
+    global _color_id_counter, _color_map
+
+    # Convert hex to RGB
+    rgb = _hex_to_curses_color(hex_color)
+
+    if hex_color in _color_map:
+        # Update existing color
+        color_id = _color_map[hex_color]
+        try:
+            curses.init_color(color_id, *rgb)
+            logging.debug(f"Updated color {color_id} to {hex_color} (RGB: {rgb})")
+        except curses.error as e:
+            logging.warning(f"Color update failed for {hex_color}: {e}")
+        return color_id
+
+    # Create new color (same as _get_color_id)
+    if _color_id_counter > 254:
+        return 8
+
+    color_id = _color_id_counter
+    _color_map[hex_color] = color_id
+    _color_id_counter += 1
+
+    curses.init_color(color_id, *rgb)
+    logging.debug(f"Created new color {color_id} for {hex_color} (RGB: {rgb})")
+    return color_id
+
+
 def load_themes_raw() -> Dict[str, Dict[str, Any]]:
     """Load themes from JSON file without curses color initialization.
     
@@ -94,7 +131,10 @@ def load_themes_raw() -> Dict[str, Dict[str, Any]]:
 
 
 def load_themes() -> Dict[str, Dict[str, Any]]:
-    """Load themes from JSON file with curses color initialization"""
+    """Load themes from JSON file with curses color initialization.
+    
+    Uses cache for performance. Call reload_themes() to force reload from file.
+    """
     global _theme_cache
 
     if _theme_cache is not None:
@@ -102,7 +142,7 @@ def load_themes() -> Dict[str, Dict[str, Any]]:
 
     try:
         raw_themes = load_themes_raw()
-        
+
         # Convert hex colors to curses color IDs
         themes = {}
         for theme_id, theme_data in raw_themes.items():
@@ -158,6 +198,84 @@ def load_themes() -> Dict[str, Dict[str, Any]]:
         return _theme_cache
 
 
+def reload_themes() -> Dict[str, Dict[str, Any]]:
+    """Reload themes from JSON file, updating colors.
+    
+    This function clears the cache and reloads themes from the file.
+    It also updates existing colors using curses.init_color().
+    Call this function after modifying themes.json to apply changes.
+    
+    Returns:
+        Dictionary of themes with updated color IDs
+    """
+    global _theme_cache
+
+    logging.info("Reloading themes from file")
+    
+    # Clear cache to force reload
+    _theme_cache = None
+    
+    # Note: We don't reset _color_map and _color_id_counter to preserve
+    # existing color IDs. Instead, we use _update_color() to update them.
+    
+    try:
+        raw_themes = load_themes_raw()
+        logging.info(f"Loaded {len(raw_themes)} themes from {THEMES_FILE}")
+
+        # Convert hex colors to curses color IDs (updating existing colors)
+        themes = {}
+        for theme_id, theme_data in raw_themes.items():
+            theme = {
+                "name": theme_data.get("name", theme_id),
+                "bg_color": _update_color(theme_data.get("bg_color", "#000000")),
+                "header": _update_color(theme_data.get("header", "#ffffff")),
+                "selected": _update_color(theme_data.get("selected", "#ffffff")),
+                "info": _update_color(theme_data.get("info", "#ffffff")),
+                "metadata": _update_color(theme_data.get("metadata", "#ffffff")),
+                "instructions": _update_color(theme_data.get("instructions", "#ffffff")),
+                "favorite": _update_color(theme_data.get("favorite", "#ffffff")),
+                "is_light": theme_data.get("is_light", False),
+            }
+            themes[theme_id] = theme
+
+        _theme_cache = themes
+        logging.info("Themes reloaded successfully")
+        return themes
+
+    except (json.JSONDecodeError, IOError, OSError) as e:
+        logging.error(f"Failed to reload themes: {e}")
+        # Return cached themes or default
+        if _theme_cache:
+            return _theme_cache
+        return {
+            "default": {
+                "name": "Default Dark",
+                "bg_color": curses.COLOR_BLACK,
+                "header": curses.COLOR_CYAN,
+                "selected": curses.COLOR_GREEN,
+                "info": curses.COLOR_YELLOW,
+                "metadata": curses.COLOR_MAGENTA,
+                "instructions": curses.COLOR_BLUE,
+                "favorite": curses.COLOR_RED,
+                "is_light": False,
+            }
+        }
+
+
+def reset_theme_cache() -> None:
+    """Reset all theme and color caches.
+    
+    This function clears both the theme cache and the color map.
+    Useful for testing or when you want to completely reinitialize themes.
+    Note: This should only be called outside of curses environment or
+    when you plan to reinitialize all colors.
+    """
+    global _theme_cache, _color_map, _color_id_counter
+    _theme_cache = None
+    _color_map = {}
+    _color_id_counter = 10
+
+
 def get_color_themes() -> Dict[str, Dict[str, int]]:
     """Returns dictionary of available color themes (for compatibility)"""
     themes = load_themes()
@@ -202,34 +320,52 @@ def init_color_pairs(bg_color: int) -> None:
     pass  # Now handled in apply_theme
 
 
-def apply_theme(theme_name: str, bg_color: int) -> None:
-    """Apply color theme"""
-    themes = load_themes()
+def apply_theme(theme_name: str, bg_color: Any = None) -> None:
+    """Apply color theme.
+    
+    This function now reloads themes from the JSON file to pick up any changes.
+    
+    Args:
+        theme_name: Name of the theme to apply
+        bg_color: Optional background color (int or None). 
+                  If None, will use the theme's bg_color from file.
+    """
+    # Reload themes from file to pick up any changes
+    themes = reload_themes()
 
     if theme_name not in themes:
         theme_name = "default"
 
     theme = themes[theme_name]
 
+    # Use provided bg_color or theme's bg_color
+    # If bg_color is provided as int (from old cache), we need to get hex from raw themes
+    if bg_color is None:
+        # Get bg_color from reloaded themes
+        effective_bg_color = theme["bg_color"]
+    else:
+        # bg_color was provided - use it (for backward compatibility)
+        effective_bg_color = bg_color
+
     # Determine if this is a light theme
     is_light = theme.get("is_light", False)
 
     # Initialize color pairs based on theme
-    curses.init_pair(1, theme["header"], bg_color)  # Header
-    curses.init_pair(2, theme["selected"], bg_color)  # Selected channel
-    curses.init_pair(3, theme["info"], bg_color)  # Channel info
-    curses.init_pair(4, theme["metadata"], bg_color)  # Track metadata
-    curses.init_pair(5, theme["instructions"], bg_color)  # Instructions
-    curses.init_pair(6, theme["favorite"], bg_color)  # Favorite icon
+    curses.init_pair(1, theme["header"], effective_bg_color)  # Header
+    curses.init_pair(2, theme["selected"], effective_bg_color)  # Selected channel
+    curses.init_pair(3, theme["info"], effective_bg_color)  # Channel info
+    curses.init_pair(4, theme["metadata"], effective_bg_color)  # Track metadata
+    curses.init_pair(5, theme["instructions"], effective_bg_color)  # Instructions
+    curses.init_pair(6, theme["favorite"], effective_bg_color)  # Favorite icon
 
     # Volume indicator colors
     if is_light:
-        curses.init_pair(60, 128, bg_color)  # Volume bar - dark gray
-        curses.init_pair(61, 128, bg_color)  # Speaker icon - dark gray
+        curses.init_pair(60, 128, effective_bg_color)  # Volume bar - dark gray
+        curses.init_pair(61, 128, effective_bg_color)  # Speaker icon - dark gray
     else:
         # Orange/yellow for dark themes
-        curses.init_pair(60, 208, bg_color)  # Volume bar - orange
-        curses.init_pair(61, 220, bg_color)  # Speaker icon - yellow
+        curses.init_pair(60, 208, effective_bg_color)  # Volume bar - orange
+        curses.init_pair(61, 220, effective_bg_color)  # Speaker icon - yellow
 
     # Special handling for monochrome themes
     if theme_name in ("monochrome", "monochrome-dark"):

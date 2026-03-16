@@ -1,11 +1,14 @@
 """Application configuration module"""
 
 import configparser
+import logging
 import os
 from typing import Any, Dict, Optional, Set
 
 HOME = os.path.expanduser("~")
-CONFIG_DIR = os.path.join(HOME, ".somafm_tui")
+# Use XDG Base Directory specification for Linux compliance
+XDG_CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config"))
+CONFIG_DIR = os.path.join(XDG_CONFIG_HOME, "somafm_tui")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "somafm.cfg")
 
 # Default configuration
