@@ -65,8 +65,12 @@ jobs:
           grep "^pkgver" PKGBUILD
           
           # Update sha256sums for the new tarball
+          # Download tarball and compute sha256sum
           echo "Updating sha256sums..."
-          updpkgsums
+          curl -sL "https://github.com/${{ github.repository }}/archive/refs/tags/v${VERSION}.tar.gz" | sha256sum | awk '{print $1}' > /tmp/sha256sum
+          NEW_SHA=$(cat /tmp/sha256sum)
+          sed -i "s/^sha256sums=.*/sha256sums=('$NEW_SHA')/" PKGBUILD
+          echo "Updated sha256sums to: $NEW_SHA"
           grep "^sha256sums" PKGBUILD
 
       - name: Setup SSH
