@@ -35,6 +35,11 @@ jobs:
         run: |
           pytest tests/ -v --tb=short
 
+      - name: Verify PKGBUILD includes all Python files
+        run: |
+          chmod +x scripts/verify-pkgbuild.sh
+          ./scripts/verify-pkgbuild.sh
+
   publish-aur:
     runs-on: ubuntu-latest
     needs: test
