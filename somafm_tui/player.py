@@ -16,7 +16,7 @@ import logging
 import signal
 import threading
 import locale
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Callable
 
 # Set locale to C for MPV compatibility
 locale.setlocale(locale.LC_NUMERIC, "C")
@@ -101,28 +101,18 @@ def check_dependencies() -> None:
             input("\nPress Enter to continue...")
 
 
-# Check dependencies before importing
-check_dependencies()
-
+# Module-level imports (after dependency check function definition)
+# These are safe to import at module level because check_dependencies() is defined above
 import curses
 import mpv
 import requests
 
-from somafm_tui.config import load_config, save_config, validate_config, CONFIG_DIR, CONFIG_FILE, HOME, set_allowed_themes
-from somafm_tui.themes import get_color_themes, get_theme_names, init_custom_colors, apply_theme
-from somafm_tui.models import TrackMetadata, Channel, AppConfig
-from somafm_tui.channels import (
-    fetch_channels,
-    fetch_channels_async,
-    load_favorites,
-    load_channel_usage,
-    save_channel_usage,
-    clean_channel_usage,
-    sort_channels_by_usage,
-)
+# Imports for module-level constants and functions
+from somafm_tui.config import CONFIG_DIR, CONFIG_FILE, HOME, set_allowed_themes
+from somafm_tui.themes import get_theme_names, apply_theme
+from somafm_tui.models import TrackMetadata, Channel
 from somafm_tui.ui import UIScreen
 from somafm_tui.timer import SleepTimer
-from somafm_tui.mpris_service import MPRISService, run_mpris_loop
 from somafm_tui.core import PlaybackController, StateManager, InputHandler
 from somafm_tui.cli import (
     parse_args,
@@ -131,6 +121,7 @@ from somafm_tui.cli import (
     print_favorites,
     print_themes,
 )
+from somafm_tui.constants import HELP_OVERLAY_WIDTH, HELP_OVERLAY_HEIGHT
 
 
 # Constants
@@ -185,7 +176,7 @@ def setup_logging() -> None:
     )
 
 
-def _create_signal_handler(player_instance: "SomaFMPlayer"):
+def _create_signal_handler(player_instance: "SomaFMPlayer") -> Callable[[int, Any], None]:
     """Create a signal handler closure for the given player instance.
 
     Uses weakref to prevent reference cycles and memory leaks.
@@ -353,7 +344,9 @@ class SomaFMPlayer:
             valid_ids = {ch.id for ch in channels}
             usage = clean_channel_usage(usage, valid_ids)
 
-            self.channels = sort_channels_by_usage(channels, usage)
+            # Thread-safe update of shared data
+            with self._data_lock:
+                self.channels = sort_channels_by_usage(channels, usage)
             save_channel_usage(CHANNEL_USAGE_FILE, usage)
 
         except (ConnectionError, TimeoutError) as e:
@@ -375,7 +368,8 @@ class SomaFMPlayer:
         Shows loading message and updates UI when complete.
         """
         # Start with empty channels, show loading message
-        self.channels = []
+        with self._data_lock:
+            self.channels = []
 
         def on_channels_loaded(channels_opt: Optional[List[Channel]]):
             """Callback when channels are loaded."""
@@ -466,8 +460,8 @@ class SomaFMPlayer:
         # Clear help overlay area if help is not active (prevent ghost overlay)
         if not self.state.show_help:
             try:
-                help_height = 32  # len(help_text) + 2
-                help_width = min(50, max_x - 10)
+                help_height = HELP_OVERLAY_HEIGHT
+                help_width = min(HELP_OVERLAY_WIDTH, max_x - 10)
                 help_y = (max_y - help_height) // 2
                 help_x = (max_x - help_width) // 2
                 for y in range(help_y, min(help_y + help_height, max_y)):
@@ -558,7 +552,7 @@ class SomaFMPlayer:
                 self.init_colors()
 
                 stdscr.keypad(True)
-                curses.raw()
+                curses.cbreak()  # Use cbreak instead of raw for proper key handling
                 stdscr.nodelay(True)
 
                 self._display_interface()
@@ -642,6 +636,25 @@ class SomaFMPlayer:
 
 def main() -> None:
     """Entry point with CLI argument support."""
+    # Check dependencies first (before any imports that might fail)
+    check_dependencies()
+
+    # Runtime imports are now at module level (after check_dependencies function)
+    # Additional imports that depend on runtime configuration
+    from somafm_tui.config import load_config, save_config, validate_config
+    from somafm_tui.themes import get_color_themes, init_custom_colors, apply_theme, load_themes_raw
+    from somafm_tui.channels import (
+        fetch_channels,
+        fetch_channels_async,
+        load_favorites,
+        load_channel_usage,
+        save_channel_usage,
+        clean_channel_usage,
+        sort_channels_by_usage,
+        filter_channels_by_query,
+    )
+    from somafm_tui.mpris_service import MPRISService, run_mpris_loop
+
     args = parse_args()
 
     if not validate_args(args):
@@ -658,13 +671,10 @@ def main() -> None:
     ensure_directories()
     setup_logging()
 
-    # Dependencies already checked by check_dependencies() at module load
     # Load configuration
     config = validate_config(load_config())
 
     # Initialize allowed themes whitelist for security (CLI mode)
-    from somafm_tui.themes import get_theme_names
-    from somafm_tui.config import set_allowed_themes
     theme_names = get_theme_names()
     set_allowed_themes(set(theme_names))
 

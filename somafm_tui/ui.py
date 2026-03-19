@@ -6,11 +6,16 @@ import time
 from typing import Any, Dict, List, Optional, Set
 
 from .models import TrackMetadata, Channel
-
-
-# Color pair constants for volume indicator
-VOLUME_BAR_COLOR_PAIR = 60  # Color pair for volume bar fill
-VOLUME_ICON_COLOR_PAIR = 61  # Color pair for volume icon and percentage
+from .constants import (
+    VOLUME_BAR_COLOR_PAIR,
+    VOLUME_ICON_COLOR_PAIR,
+    MAX_TRACK_HISTORY_ENTRIES,
+    CHANNEL_PANEL_MIN_WIDTH,
+    CHANNEL_PANEL_MAX_WIDTH,
+    INSTRUCTION_LINES,
+    VOLUME_DISPLAY_TIMEOUT,
+    HELP_OVERLAY_WIDTH,
+)
 
 # Icon functions - listeners/bitrate use ASCII, others use Unicode
 def get_listener_icon() -> str:
@@ -48,7 +53,7 @@ class UIScreen:
 
     def __init__(self):
         self.current_metadata = TrackMetadata()
-        self.max_history = 10
+        self.max_history = MAX_TRACK_HISTORY_ENTRIES
         self.track_history: List[TrackMetadata] = []
         self.current_channel: Optional[Channel] = None
         self.player: Any = None
@@ -604,7 +609,7 @@ class UIScreen:
         # Always draw volume indicator if it was recently updated
         if self.volume_display is not None:
             elapsed = time.time() - self.volume_display_time
-            if elapsed < 3:
+            if elapsed < VOLUME_DISPLAY_TIMEOUT:
                 # Draw directly
                 self._draw_volume_indicator(stdscr)
             else:
@@ -808,7 +813,7 @@ class UIScreen:
 
         # Calculate box size
         box_height = len(help_text) + 2
-        box_width = min(50, max_x - 10)  # Limit width to 50 chars
+        box_width = min(HELP_OVERLAY_WIDTH, max_x - 10)  # Limit width to HELP_OVERLAY_WIDTH chars
         box_y = (max_y - box_height) // 2
         box_x = (max_x - box_width) // 2  # Center horizontally
 

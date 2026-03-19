@@ -2,7 +2,15 @@
 
 import argparse
 import sys
-from typing import Optional, List
+from typing import Optional, List, Set, Dict, Any
+
+from . import __version__
+from .models import Channel
+
+
+def get_version() -> str:
+    """Get current version from package metadata."""
+    return __version__
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -110,7 +118,7 @@ Navigation (interactive mode):
     utility_group.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.6.2",
+        version=f"%(prog)s {get_version()}",
     )
     utility_group.add_argument(
         "--verbose",
@@ -158,9 +166,9 @@ def validate_args(args: argparse.Namespace) -> bool:
     return True
 
 
-def print_channels(channels: list) -> None:
+def print_channels(channels: List[Channel]) -> None:
     """Print formatted channel list.
-    
+
     Args:
         channels: List of Channel objects
     """
@@ -175,9 +183,9 @@ def print_channels(channels: list) -> None:
     print(f"\nTotal: {len(channels)} channels")
 
 
-def print_favorites(channels: list, favorites: set) -> None:
+def print_favorites(channels: List[Channel], favorites: Set[str]) -> None:
     """Print favorite channels.
-    
+
     Args:
         channels: List of all Channel objects
         favorites: Set of favorite channel IDs
@@ -195,7 +203,7 @@ def print_favorites(channels: list, favorites: set) -> None:
     print()
 
 
-def print_themes(themes: dict) -> None:
+def print_themes(themes: Dict[str, Dict[str, Any]]) -> None:
     """Print available themes, sorted: dark themes first, light themes last.
 
     Args:

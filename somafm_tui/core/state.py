@@ -18,6 +18,16 @@ from ..channels import (
     clean_channel_usage,
     load_channel_usage,
 )
+from ..constants import (
+    MAX_SEARCH_QUERY_LENGTH,
+    MAX_SLEEP_TIMER_MINUTES,
+    MIN_SLEEP_TIMER_MINUTES,
+    MAX_SLEEP_INPUT_DIGITS,
+    SLEEP_FIRST_DIGIT_MAX,
+    SLEEP_SECOND_DIGIT_AFTER_4_MAX,
+    TIMER_CHECK_INTERVAL,
+    TIMER_DISPLAY_UPDATE_INTERVAL,
+)
 
 
 class StateManager:
@@ -149,13 +159,13 @@ class StateManager:
 
     def add_search_char(self, char: str) -> None:
         """Add character to search query.
-        
+
         Limits search query length to prevent overflow and filters out
         potentially problematic characters.
         """
         if isinstance(char, str) and len(char) == 1 and char.isprintable():
-            # Limit search query length to 50 characters
-            if len(self.search_query) >= 50:
+            # Limit search query length to MAX_SEARCH_QUERY_LENGTH characters
+            if len(self.search_query) >= MAX_SEARCH_QUERY_LENGTH:
                 return
             # Filter out control characters (except basic printable ASCII)
             if ord(char) < 32 or ord(char) > 126:
@@ -193,25 +203,25 @@ class StateManager:
 
     def add_sleep_input(self, digit: str) -> None:
         """Add digit to sleep timer input.
-        
+
         Args:
             digit: Digit character (0-9)
-            
+
         Note:
-            Maximum sleep timer is 480 minutes (8 hours).
-            Input validation prevents entering values > 480.
+            Maximum sleep timer is MAX_SLEEP_TIMER_MINUTES minutes (8 hours).
+            Input validation prevents entering values > MAX_SLEEP_TIMER_MINUTES.
         """
         if isinstance(digit, str) and digit.isdigit():
-            if len(self.sleep_input) >= 3:
+            if len(self.sleep_input) >= MAX_SLEEP_INPUT_DIGITS:
                 return  # Max length reached
-            
+
             # Calculate potential new value
             potential_value = int(self.sleep_input + digit) if self.sleep_input else int(digit)
-            
+
             # Reject if exceeds maximum
-            if potential_value > 480:
+            if potential_value > MAX_SLEEP_TIMER_MINUTES:
                 return
-            
+
             # Additional validation: prevent entering invalid intermediate values
             # that could lead to confusion (e.g., 47 is OK, but user can't reach 480 from there)
             if len(self.sleep_input) == 0:
@@ -221,15 +231,15 @@ class StateManager:
             elif len(self.sleep_input) == 1:
                 # Second digit: depends on first
                 first_digit = int(self.sleep_input)
-                if first_digit < 4:
+                if first_digit < SLEEP_FIRST_DIGIT_MAX:
                     # 1-3: any digit OK (10-399 range)
                     self.sleep_input += digit
                 else:
                     # 4: only 0-8 OK (40-48 range)
-                    if int(digit) <= 8:
+                    if int(digit) <= SLEEP_SECOND_DIGIT_AFTER_4_MAX:
                         self.sleep_input += digit
             else:
-                # Third digit: already validated by potential_value <= 480
+                # Third digit: already validated by potential_value <= MAX_SLEEP_TIMER_MINUTES
                 self.sleep_input += digit
 
     def remove_sleep_input(self) -> None:
@@ -241,15 +251,15 @@ class StateManager:
         """Set sleep timer.
 
         Args:
-            minutes: Minutes until shutdown (1-480)
+            minutes: Minutes until shutdown (MIN_SLEEP_TIMER_MINUTES-MAX_SLEEP_TIMER_MINUTES)
 
         Returns:
             True if timer was set successfully, False if invalid
-            
+
         Note:
-            Maximum sleep timer is 480 minutes (8 hours).
+            Maximum sleep timer is MAX_SLEEP_TIMER_MINUTES minutes (8 hours).
         """
-        if 1 <= minutes <= 480:
+        if MIN_SLEEP_TIMER_MINUTES <= minutes <= MAX_SLEEP_TIMER_MINUTES:
             self.sleep_timer.set(minutes)
             self.sleep_overlay_active = False
             self.sleep_input = ""
@@ -264,15 +274,15 @@ class StateManager:
 
     def check_sleep_timer(self) -> bool:
         """Check if sleep timer has expired.
-        
+
         Returns:
             True if timer has expired and app should shut down
         """
         current_time = time.time()
 
-        # Check timer expiration every minute
+        # Check timer expiration every TIMER_CHECK_INTERVAL seconds
         if self.sleep_timer.is_active():
-            if current_time - self._last_timer_check >= 60:
+            if current_time - self._last_timer_check >= TIMER_CHECK_INTERVAL:
                 self._last_timer_check = current_time
 
             if self.sleep_timer.get_remaining_seconds() <= 0:
@@ -283,13 +293,13 @@ class StateManager:
 
     def should_update_timer_display(self) -> bool:
         """Check if timer display should be updated.
-        
+
         Returns:
             True if display should be updated (every second)
         """
         current_time = time.time()
         if self.sleep_timer.is_active():
-            if current_time - self._last_timer_display >= 1:
+            if current_time - self._last_timer_display >= TIMER_DISPLAY_UPDATE_INTERVAL:
                 self._last_timer_display = current_time
                 return True
         return False

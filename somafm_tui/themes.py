@@ -4,14 +4,16 @@ import curses
 import json
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+
+from .constants import MAX_CURSES_COLOR_ID, MIN_CURSES_COLOR_ID
 
 # Path to themes JSON
 THEMES_FILE = os.path.join(os.path.dirname(__file__), "themes.json")
 
 # Curses color IDs (these must be initialized before use)
 # We'll map custom colors to IDs 10-174
-_color_id_counter = 10
+_color_id_counter = MIN_CURSES_COLOR_ID
 _color_map: Dict[str, int] = {}
 _theme_cache: Optional[Dict[str, Dict[str, Any]]] = None
 
@@ -34,7 +36,7 @@ def _get_color_id(hex_color: str) -> int:
         return _color_map[hex_color]
 
     # Create new color
-    if _color_id_counter > 254:
+    if _color_id_counter > MAX_CURSES_COLOR_ID:
         # Reuse gray as fallback
         return 8
 
@@ -74,7 +76,7 @@ def _update_color(hex_color: str) -> int:
         return color_id
 
     # Create new color (same as _get_color_id)
-    if _color_id_counter > 254:
+    if _color_id_counter > MAX_CURSES_COLOR_ID:
         return 8
 
     color_id = _color_id_counter
@@ -295,7 +297,7 @@ def get_color_themes() -> Dict[str, Dict[str, int]]:
     }
 
 
-def get_theme_names() -> list:
+def get_theme_names() -> List[str]:
     """Returns list of all theme names, sorted: dark themes first, light themes last"""
     # Use load_themes_raw() to work without curses initialization
     themes = load_themes_raw()
