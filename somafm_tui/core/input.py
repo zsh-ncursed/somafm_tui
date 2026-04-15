@@ -58,7 +58,7 @@ class InputHandler:
         Args:
             key: Key event from curses
         """
-        if key == chr(27):  # ESC
+        if key == chr(27) or key == 27:  # ESC (string or int)
             self.state.hide_sleep_overlay()
         elif key in (curses.KEY_BACKSPACE, "\b", "\x7f"):
             self.state.remove_sleep_input()
@@ -80,11 +80,11 @@ class InputHandler:
 
     def _handle_search_input(self, key: Any) -> None:
         """Handle input in search mode.
-        
+
         Args:
             key: Key event from curses
         """
-        if key == chr(27):  # ESC
+        if key == chr(27) or key == 27:  # ESC (string or int)
             self.state.exit_search()
         elif key == "?":
             self.state.exit_search()
@@ -139,13 +139,13 @@ class InputHandler:
             self.state.start_search()
         elif key == "?":
             self.state.toggle_help()
-        elif key == chr(27):  # ESC - close help
-            if self.state.show_help:
-                self.state.hide_help()
 
         # Application control
         elif key in ("q", "Q"):
             self.state.stop()
+        elif key == chr(27) or key == 27:  # ESC - close help (string or int)
+            if self.state.show_help:
+                self.state.hide_help()
 
         # Playback control
         elif key in ("h", "H"):

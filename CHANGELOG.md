@@ -5,6 +5,23 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.12] - 2026-04-15
+
+### Fixed
+- **ESC key not closing search/sleep/help overlays** — Fixed input handler to properly detect ESC key:
+  - ESC now works correctly in search mode (press `/` to search, `Esc` to cancel)
+  - ESC now works correctly in sleep timer overlay (press `s`, then `Esc` to cancel)
+  - ESC now works correctly to close help overlay (press `?`, then `Esc` to close)
+  - Root cause: `curses.get_wch()` returns ESC as integer `27` in some modes, not just as string `chr(27)`
+  - Updated all ESC checks in `core/input.py` to handle both formats
+
+### Technical
+- Modified `somafm_tui/core/input.py`:
+  - `_handle_sleep_input()`: Changed `if key == chr(27)` to `if key == chr(27) or key == 27`
+  - `_handle_search_input()`: Changed `if key == chr(27)` to `if key == chr(27) or key == 27`
+  - `_handle_string_input()`: Changed `elif key == chr(27)` to `elif key == chr(27) or key == 27`
+  - Added comments clarifying "ESC (string or int)" for future maintainability
+
 ## [0.6.2] - 2026-03-16
 
 ### Added
