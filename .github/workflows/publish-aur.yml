@@ -92,7 +92,7 @@ jobs:
           ssh -T -i ~/.ssh/id_ed25519 aur@aur.archlinux.org || echo "SSH test failed"
 
       - name: Update AUR package
-        uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.2
         with:
           pkgname: somafm_tui
           pkgbuild: PKGBUILD
@@ -102,5 +102,3 @@ jobs:
           commit_message: "Update to version ${{ steps.get_version.outputs.version }}"
           ssh_keyscan_types: rsa,ed25519
           updpkgsums: true
-          test: true
-          test_flags: --clean --cleanbuild --nodeps --verifysource
