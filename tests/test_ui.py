@@ -129,7 +129,9 @@ class TestDisplayHelpers:
         screen = UIScreen()
         screen.volume_display = 75
         screen.volume_display_time = 0  # Expired
+        mock_stdscr = Mock()
+        mock_stdscr.getmaxyx.return_value = (24, 80)
 
-        screen._handle_volume_display(Mock())
+        screen._handle_volume_display(mock_stdscr)
 
         assert screen.volume_display is None

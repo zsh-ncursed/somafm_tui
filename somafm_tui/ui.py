@@ -621,7 +621,6 @@ class UIScreen:
 
     def _handle_volume_display(self, stdscr: curses.window) -> None:
         """Handle volume indicator display"""
-        # Always draw volume indicator if it was recently updated
         if self.volume_display is not None:
             elapsed = time.time() - self.volume_display_time
             if elapsed < VOLUME_DISPLAY_TIMEOUT:
@@ -629,8 +628,28 @@ class UIScreen:
                 self._draw_volume_indicator(stdscr)
             else:
                 # Time expired, clear and reset
+                self._clear_volume_indicator(stdscr)
                 self.volume_display = None
                 self.volume_display_time = 0
+        elif self.volume_display_was_visible:
+            # Was showing but now hidden, clear the indicator
+            self._clear_volume_indicator(stdscr)
+            self.volume_display_was_visible = False
+
+    def _clear_volume_indicator(self, stdscr: curses.window) -> None:
+        """Clear volume indicator area"""
+        try:
+            max_y, max_x = stdscr.getmaxyx()
+            bar_width = 20
+            start_y = 1
+            start_x = max_x - bar_width - 5
+            vol_icon = get_volume_icon()
+            clear_start = start_x - len(vol_icon)
+            clear_end = start_x + bar_width + 5
+            for x in range(clear_start, min(clear_end, max_x)):
+                stdscr.addstr(start_y, x, " ")
+        except curses.error:
+            pass
 
     def _draw_volume_indicator(self, stdscr: curses.window) -> None:
         """Draw volume indicator"""
@@ -685,6 +704,7 @@ class UIScreen:
         """Show volume indicator"""
         self.volume_display = volume
         self.volume_display_time = time.time()
+        self.volume_display_was_visible = True
 
     def show_notification(self, stdscr: curses.window, message: str, timeout: float = 1.5) -> None:
         """Show notification with automatic screen refresh after closing."""
