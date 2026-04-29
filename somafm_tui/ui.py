@@ -70,6 +70,7 @@ class UIScreen:
         self._prev_is_playing: bool = False
         self._prev_metadata_hash: int = 0
         self._prev_search_query: str = ""
+        self._prev_is_searching: bool = False
         self._prev_show_help: bool = False
         self._prev_bitrate: str = ""
         # No forced full redraw interval - partial redraw with clrtoeol() is sufficient
@@ -87,6 +88,7 @@ class UIScreen:
         self._prev_is_playing = False
         self._prev_metadata_hash = 0
         self._prev_search_query = ""
+        self._prev_is_searching = False
         self._prev_show_help = False
         self._prev_bitrate = ""
 
@@ -128,6 +130,7 @@ class UIScreen:
         # Show help overlay if enabled (always full redraw)
         if show_help:
             self._display_help(stdscr, max_y, max_x)
+            self._prev_show_help = show_help
             stdscr.refresh()
             return
 
@@ -148,7 +151,7 @@ class UIScreen:
             current_bitrate != self._prev_bitrate
         )
         metadata_changed = metadata_hash != self._prev_metadata_hash
-        search_changed = search_query != self._prev_search_query
+        search_changed = search_query != self._prev_search_query or is_searching != self._prev_is_searching
         help_changed = show_help != self._prev_show_help
         
         # Cache was invalidated (e.g., after resize or theme change) - force full redraw
@@ -195,6 +198,7 @@ class UIScreen:
         self._prev_is_playing = is_playing
         self._prev_metadata_hash = metadata_hash
         self._prev_search_query = search_query
+        self._prev_is_searching = is_searching
         self._prev_show_help = show_help
         self._prev_bitrate = current_bitrate
 
@@ -667,6 +671,10 @@ class UIScreen:
         if len(self.track_history) > self.max_history:
             self.track_history.pop()
 
+    def clear_history(self) -> None:
+        """Clear track history."""
+        self.track_history.clear()
+
     def update_metadata(self, metadata: TrackMetadata) -> None:
         """Update current track metadata"""
         if metadata.artist != self.current_metadata.artist or metadata.title != self.current_metadata.title:
@@ -830,6 +838,14 @@ class UIScreen:
         box_width = min(HELP_OVERLAY_WIDTH, max_x - 10)  # Limit width to HELP_OVERLAY_WIDTH chars
         box_y = (max_y - box_height) // 2
         box_x = (max_x - box_width) // 2  # Center horizontally
+
+        # Clear overlay area before drawing to prevent artifacts
+        for y in range(box_y, box_y + box_height):
+            try:
+                stdscr.move(y, box_x)
+                stdscr.clrtoeol()
+            except curses.error:
+                pass
 
         try:
             # Draw overlay box manually on main screen (not separate window)

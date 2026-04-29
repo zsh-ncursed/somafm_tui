@@ -457,11 +457,13 @@ class SomaFMPlayer:
             except curses.error:
                 pass
 
-        # Clear help overlay area if help is not active (prevent ghost overlay)
-        if not self.state.show_help:
+# Clear sleep overlay area if overlay is not active (prevent ghost overlay)
+        if not self.state.sleep_overlay_active:
             try:
-                help_height = HELP_OVERLAY_HEIGHT
+                # Must match _display_help centering exactly
                 help_width = min(HELP_OVERLAY_WIDTH, max_x - 10)
+                help_text_lines = 28  # Number of lines in help_text from _display_help
+                help_height = help_text_lines + 2
                 help_y = (max_y - help_height) // 2
                 help_x = (max_x - help_width) // 2
                 for y in range(help_y, min(help_y + help_height, max_y)):

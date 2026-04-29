@@ -184,6 +184,7 @@ class PlaybackController:
 
         self.current_metadata = TrackMetadata()
         self.ui_screen.current_metadata = self.current_metadata
+        self.ui_screen.clear_history()
 
         if self.mpris_service:
             self.mpris_service.update_playback_status("Stopped")
