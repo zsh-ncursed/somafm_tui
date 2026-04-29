@@ -584,6 +584,7 @@ class SomaFMPlayer:
                         self.ui_screen.volume_display is not None
                         and current_time - self.ui_screen.volume_display_time >= 3
                     ):
+                        # Just reset display state, UI will handle clearing
                         self.ui_screen.volume_display = None
                         self._display_interface()
 

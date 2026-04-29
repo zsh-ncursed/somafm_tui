@@ -624,36 +624,42 @@ class UIScreen:
 
     def _handle_volume_display(self, stdscr: curses.window) -> None:
         """Handle volume indicator display"""
-        # Always clear the area first to prevent artifacts
-        self._clear_volume_indicator(stdscr)
+        max_y, max_x = stdscr.getmaxyx()
         
-        if self.volume_display is not None:
-            elapsed = time.time() - self.volume_display_time
-            if elapsed < VOLUME_DISPLAY_TIMEOUT:
-                # Draw directly
-                self._draw_volume_indicator(stdscr)
-                self.volume_display_was_visible = True
-            else:
-                # Time expired, clear and reset
+        # Position 10 columns from right edge
+        start_x = max_x - 10
+        
+        should_show = self.volume_display is not None and (time.time() - self.volume_display_time) < VOLUME_DISPLAY_TIMEOUT
+        
+        if should_show:
+            for x in range(start_x, max_x):
+                try:
+                    stdscr.addch(1, x, " ")
+                except curses.error:
+                    pass
+            
+            vol_text = f"{self.volume_display}%"
+            stdscr.addstr(1, start_x, vol_text, curses.color_pair(61) | curses.A_BOLD)
+            self.volume_display_was_visible = True
+        else:
+            for x in range(start_x, max_x):
+                try:
+                    stdscr.addch(1, x, " ")
+                except curses.error:
+                    pass
+            
+            if self.volume_display is not None:
                 self.volume_display = None
                 self.volume_display_time = 0
                 self.volume_display_was_visible = False
-        elif self.volume_display_was_visible:
-            # Was showing but now hidden
-            self.volume_display_was_visible = False
 
     def _clear_volume_indicator(self, stdscr: curses.window) -> None:
         """Clear volume indicator area"""
         try:
             max_y, max_x = stdscr.getmaxyx()
-            bar_width = 20
-            start_y = 1
-            start_x = max_x - bar_width - 5
-            vol_icon = get_volume_icon()
-            clear_start = start_x - len(vol_icon)
-            clear_end = start_x + bar_width + 10  # Extra space for "XXX%" text
-            for x in range(clear_start, min(clear_end, max_x)):
-                stdscr.addstr(start_y, x, " ")
+            # Clear the entire line 1 to be safe
+            for x in range(max_x):
+                stdscr.addch(1, x, " ")
         except curses.error:
             pass
 
@@ -664,6 +670,13 @@ class UIScreen:
         start_y = 1
         start_x = max_x - bar_width - 5
 
+        # First clear the entire volume area to prevent artifacts
+        for x in range(start_x - 5, max_x):
+            try:
+                stdscr.addch(start_y, x, " ")
+            except curses.error:
+                pass
+        
         volume = self.volume_display
         # Use named constants for color pairs
         vol_bar_color = VOLUME_BAR_COLOR_PAIR
