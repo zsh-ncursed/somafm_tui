@@ -5,6 +5,27 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.14] - 2026-04-29
+
+### Added
+- **Show only favorites** — Filter channel list to show only favorite channels:
+  - Press `z` to toggle showing only favorite channels
+  - When enabled, only favorited channels are displayed in the list
+  - Setting persists in config and restored after restart
+
+- **Toggle footer** — Show/hide bottom instructions bar:
+  - Press `x` to toggle footer visibility
+  - When hidden, more screen space for channel list
+  - Setting persists in config and restored after restart
+
+- **Updated keyboard shortcuts** — Better clarity in instructions and help:
+  - `f` is now "track fav" (favorites current track)
+  - `Ctrl+f` is now "channel favor" (favorites selected channel)
+
+### Technical
+- Added `show_only_favorites` and `show_footer` options to config
+- Modified `config.py`, `state.py`, `input.py`, `ui.py`, `player.py`
+
 ## [0.6.12] - 2026-04-15
 
 ### Fixed
