@@ -215,6 +215,9 @@ class UIScreen:
         stdscr.clear()
         stdscr.bkgd(" ", curses.color_pair(1))
 
+        # Clear volume indicator area to prevent artifacts
+        self._clear_volume_indicator(stdscr)
+
         # Left panel: Channel list
         self._display_channels_panel(
             stdscr, channels, selected_index, scroll_offset, channel_favorites,
