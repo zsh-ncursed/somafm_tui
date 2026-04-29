@@ -139,6 +139,21 @@ class InputHandler:
             self.state.start_search()
         elif key == "?":
             self.state.toggle_help()
+        elif key in ("z", "Z"):
+            self.state.toggle_show_only_favorites()
+            if self._stdscr:
+                # Invalidate UI cache to force full redraw when channel list changes
+                if hasattr(self.ui, 'invalidate_cache'):
+                    self.ui.invalidate_cache()
+                msg = "Only favorites" if self.state.show_only_favorites else "All channels"
+                self.ui.show_notification(self._stdscr, msg, timeout=1.0)
+        elif key in ("x", "X"):
+            self.state.toggle_show_footer()
+            if self._stdscr:
+                if hasattr(self.ui, 'invalidate_cache'):
+                    self.ui.invalidate_cache()
+                msg = "Footer shown" if self.state.show_footer else "Footer hidden"
+                self.ui.show_notification(self._stdscr, msg, timeout=1.0)
 
         # Application control
         elif key in ("q", "Q"):

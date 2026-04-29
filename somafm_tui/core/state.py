@@ -4,6 +4,7 @@ Manages application state including navigation, search, sleep timer, and UI stat
 """
 
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional, Set, Callable
 
@@ -78,6 +79,15 @@ class StateManager:
         # Theme state
         self._current_theme = config.get("theme", "default")
 
+        # Favorites filter state
+        self.show_only_favorites = config.get("show_only_favorites", False)
+        self._favorites_file = os.path.join(
+            os.path.dirname(config_file), "channel_favorites.json"
+        )
+
+        # Footer visibility state
+        self.show_footer = config.get("show_footer", True)
+
         # Callbacks
         self._on_state_change: Optional[Callable] = None
         self._on_theme_change: Optional[Callable] = None
@@ -95,11 +105,21 @@ class StateManager:
         
         Returns filtered channels if searching, otherwise all channels.
         """
+        channels = self.channels
+        
+        # Filter by search query
         if self.is_searching:
             if self.search_query:
-                return filter_channels_by_query(self.channels, self.search_query)
-            return self.channels
-        return self.channels
+                channels = filter_channels_by_query(channels, self.search_query)
+            return channels
+        
+        # Filter by favorites if enabled
+        if self.show_only_favorites:
+            favorites = load_favorites(self._favorites_file)
+            if favorites:
+                channels = [ch for ch in channels if ch.id in favorites]
+        
+        return channels
 
     def navigate_up(self, step: int = 1) -> None:
         """Navigate up in channel list."""
@@ -184,6 +204,21 @@ class StateManager:
     def toggle_help(self) -> None:
         """Toggle help overlay."""
         self.show_help = not self.show_help
+        self._notify_state_change()
+
+    def toggle_show_only_favorites(self) -> None:
+        """Toggle show only favorites mode."""
+        self.show_only_favorites = not self.show_only_favorites
+        self.config["show_only_favorites"] = self.show_only_favorites
+        save_config(self.config)
+        self.current_index = 0
+        self._notify_state_change()
+
+    def toggle_show_footer(self) -> None:
+        """Toggle footer visibility."""
+        self.show_footer = not self.show_footer
+        self.config["show_footer"] = self.show_footer
+        save_config(self.config)
         self._notify_state_change()
 
     def hide_help(self) -> None:

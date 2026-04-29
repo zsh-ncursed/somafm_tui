@@ -484,6 +484,7 @@ class SomaFMPlayer:
             theme_name=self.state._current_theme,
             show_help=self.state.show_help,
             current_bitrate=self.playback.current_bitrate,
+            show_footer=self.state.show_footer,
         )
 
         # Show sleep overlay if active

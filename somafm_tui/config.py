@@ -19,6 +19,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "dbus_send_metadata_artworks": False,
     "dbus_cache_metadata_artworks": True,
     "volume": 100,
+    "show_only_favorites": False,
+    "show_footer": True,
 }
 
 # Type mapping for config values
@@ -29,6 +31,8 @@ CONFIG_TYPES = {
     "dbus_send_metadata_artworks": bool,
     "dbus_cache_metadata_artworks": bool,
     "volume": int,
+    "show_only_favorites": bool,
+    "show_footer": bool,
 }
 
 # Comments for each config option
@@ -39,6 +43,8 @@ CONFIG_COMMENTS = {
     "dbus_send_metadata_artworks": "Send channel picture with metadata over D-Bus (true/false)",
     "dbus_cache_metadata_artworks": "Cache channel picture locally for D-Bus (true/false)",
     "volume": "Default volume (0-100)",
+    "show_only_favorites": "Show only favorite channels (true/false)",
+    "show_footer": "Show footer instructions (true/false)",
 }
 
 # Validation constraints for configuration values
@@ -66,6 +72,14 @@ CONFIG_VALIDATORS = {
         "default": False,
     },
     "dbus_cache_metadata_artworks": {
+        "type": bool,
+        "default": True,
+    },
+    "show_only_favorites": {
+        "type": bool,
+        "default": False,
+    },
+    "show_footer": {
         "type": bool,
         "default": True,
     },

@@ -105,6 +105,7 @@ class UIScreen:
         theme_name: str = "default",
         show_help: bool = False,
         current_bitrate: str = "",
+        show_footer: bool = True,
     ) -> None:
         """Display combined interface with smart redraw optimization.
 
@@ -165,7 +166,8 @@ class UIScreen:
             self._full_redraw(
                 stdscr, channels, selected_index, scroll_offset, channel_favorites,
                 current_channel, player, is_playing, current_bitrate,
-                split_x, panel_height, max_y, max_x, is_searching, search_query
+                split_x, panel_height, max_y, max_x, is_searching, search_query,
+                show_footer
             )
         else:
             # Partial redraw - only update changed elements
@@ -173,6 +175,7 @@ class UIScreen:
                 stdscr, channels, selected_index, scroll_offset, channel_favorites,
                 current_channel, player, is_playing, current_bitrate,
                 split_x, panel_height, max_y, max_x, is_searching, search_query,
+                show_footer,
                 selection_changed, scroll_changed, favorites_changed,
                 playback_changed, metadata_changed
             )
@@ -200,7 +203,8 @@ class UIScreen:
         selected_index: int, scroll_offset: int, channel_favorites: Set[str],
         current_channel: Optional[Channel], player: Any, is_playing: bool,
         current_bitrate: str, split_x: int, panel_height: int,
-        max_y: int, max_x: int, is_searching: bool, search_query: str
+        max_y: int, max_x: int, is_searching: bool, search_query: str,
+        show_footer: bool = True
     ) -> None:
         """Perform full screen redraw."""
         # Clear screen and set background
@@ -220,7 +224,8 @@ class UIScreen:
         )
 
         # Display instructions at bottom
-        self._display_instructions(stdscr, max_y, max_x)
+        if show_footer:
+            self._display_instructions(stdscr, max_y, max_x)
 
     def _partial_redraw(
         self, stdscr: curses.window, channels: List[Channel],
@@ -228,8 +233,10 @@ class UIScreen:
         current_channel: Optional[Channel], player: Any, is_playing: bool,
         current_bitrate: str, split_x: int, panel_height: int,
         max_y: int, max_x: int, is_searching: bool, search_query: str,
-        selection_changed: bool, scroll_changed: bool, favorites_changed: bool,
-        playback_changed: bool, metadata_changed: bool
+        show_footer: bool = True,
+        selection_changed: bool = False, scroll_changed: bool = False,
+        favorites_changed: bool = False, playback_changed: bool = False,
+        metadata_changed: bool = False
     ) -> None:
         """Perform partial redraw - only update changed elements.
 
@@ -254,8 +261,9 @@ class UIScreen:
         if is_searching:
             self._redraw_search_prompt(stdscr, search_query, split_x, panel_height)
 
-        # Always redraw instructions (may change with screen width)
-        self._redraw_instructions(stdscr, max_y, max_x)
+        # Redraw instructions if footer is shown
+        if show_footer:
+            self._redraw_instructions(stdscr, max_y, max_x)
 
         # Refresh screen to show changes
         stdscr.refresh()
@@ -541,7 +549,10 @@ class UIScreen:
                 "/ - search",
                 "Space - pause",
                 "h - stop",
-                "f - favorite",
+                "f - track fav",
+                "Ctrl+f - channel fav",
+                "z - only fav",
+                "x - toggle footer",
                 "r - bitrate",
                 "s - sleep",
                 "t/y - theme",
@@ -798,7 +809,10 @@ class UIScreen:
             ("", ""),
             ("Channels", "section"),
             ("  /     - Search channels", "normal"),
-            ("  f     - Toggle favorite", "normal"),
+            ("  f     - Toggle track favorite", "normal"),
+            ("  Ctrl+F - Toggle channel favorite", "normal"),
+            ("  z     - Show only favorites", "normal"),
+            ("  x     - Toggle footer", "normal"),
             ("", ""),
             ("Timer", "section"),
             ("  s     - Set sleep timer", "normal"),
