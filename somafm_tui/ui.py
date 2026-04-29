@@ -29,7 +29,7 @@ def get_bitrate_icon() -> str:
 
 
 def get_volume_icon() -> str:
-    """Get volume icon"""
+    """Get volume icon - returns emoji for Nerd Font or text fallback"""
     return "🔊"
 
 
@@ -626,13 +626,13 @@ class UIScreen:
         """Handle volume indicator display"""
         max_y, max_x = stdscr.getmaxyx()
         
-        # Position 10 columns from right edge
-        start_x = max_x - 10
+        # Position 12 columns from right edge (to account for volume icon)
+        start_x = max_x - 12
         
         should_show = self.volume_display is not None and (time.time() - self.volume_display_time) < VOLUME_DISPLAY_TIMEOUT
         
         if should_show:
-            for x in range(start_x, max_x):
+            for x in range(start_x - 1, max_x):
                 try:
                     stdscr.addch(1, x, " ")
                 except curses.error:
