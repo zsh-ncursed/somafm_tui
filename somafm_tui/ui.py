@@ -647,7 +647,7 @@ class UIScreen:
             start_x = max_x - bar_width - 5
             vol_icon = get_volume_icon()
             clear_start = start_x - len(vol_icon)
-            clear_end = start_x + bar_width + 8  # Extra space for "100%" text
+            clear_end = start_x + bar_width + 10  # Extra space for "XXX%" text
             for x in range(clear_start, min(clear_end, max_x)):
                 stdscr.addstr(start_y, x, " ")
         except curses.error:
