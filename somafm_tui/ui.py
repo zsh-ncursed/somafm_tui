@@ -626,11 +626,13 @@ class UIScreen:
             if elapsed < VOLUME_DISPLAY_TIMEOUT:
                 # Draw directly
                 self._draw_volume_indicator(stdscr)
+                self.volume_display_was_visible = True
             else:
                 # Time expired, clear and reset
                 self._clear_volume_indicator(stdscr)
                 self.volume_display = None
                 self.volume_display_time = 0
+                self.volume_display_was_visible = False
         elif self.volume_display_was_visible:
             # Was showing but now hidden, clear the indicator
             self._clear_volume_indicator(stdscr)
@@ -645,7 +647,7 @@ class UIScreen:
             start_x = max_x - bar_width - 5
             vol_icon = get_volume_icon()
             clear_start = start_x - len(vol_icon)
-            clear_end = start_x + bar_width + 5
+            clear_end = start_x + bar_width + 8  # Extra space for "100%" text
             for x in range(clear_start, min(clear_end, max_x)):
                 stdscr.addstr(start_y, x, " ")
         except curses.error:
