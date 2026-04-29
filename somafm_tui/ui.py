@@ -624,6 +624,9 @@ class UIScreen:
 
     def _handle_volume_display(self, stdscr: curses.window) -> None:
         """Handle volume indicator display"""
+        # Always clear the area first to prevent artifacts
+        self._clear_volume_indicator(stdscr)
+        
         if self.volume_display is not None:
             elapsed = time.time() - self.volume_display_time
             if elapsed < VOLUME_DISPLAY_TIMEOUT:
@@ -632,13 +635,11 @@ class UIScreen:
                 self.volume_display_was_visible = True
             else:
                 # Time expired, clear and reset
-                self._clear_volume_indicator(stdscr)
                 self.volume_display = None
                 self.volume_display_time = 0
                 self.volume_display_was_visible = False
         elif self.volume_display_was_visible:
-            # Was showing but now hidden, clear the indicator
-            self._clear_volume_indicator(stdscr)
+            # Was showing but now hidden
             self.volume_display_was_visible = False
 
     def _clear_volume_indicator(self, stdscr: curses.window) -> None:
