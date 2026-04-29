@@ -46,8 +46,11 @@ Thumbs.db
 # Documentation (auto-generated)
 docs/
 
+# AI agents (local only)
 .qwen/
 gha-creds-*.json
+AGENTS.md
+backlog.md
 
 # PyPI credentials
 .pypirc
