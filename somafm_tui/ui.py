@@ -226,7 +226,7 @@ class UIScreen:
 
         # Right panel: Playback info
         self._display_playback_panel(
-            stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
+            stdscr, split_x + 1, 1, max_x - split_x - 1, panel_height,
             current_channel, player, is_playing, current_bitrate,
         )
 
@@ -260,7 +260,7 @@ class UIScreen:
         # Redraw playback info if playback state or metadata changed
         if playback_changed or metadata_changed:
             self._redraw_playback_info(
-                stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
+                stdscr, split_x + 1, 1, max_x - split_x - 1, panel_height,
                 current_channel, player, is_playing, current_bitrate,
             )
 
@@ -473,23 +473,43 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Channel description - clear line first
-        if available_width > 0 and start_y + 1 < max_y:
+        # Channel description - 2 lines (start_y+1 and start_y+2)
+        if available_width > 0 and start_y + 2 < max_y:
             try:
                 stdscr.move(start_y + 1, start_x)
                 stdscr.clrtoeol()
+                stdscr.move(start_y + 2, start_x)
+                stdscr.clrtoeol()
                 description = current_channel.description or "No description"
-                if len(description) > available_width:
-                    description = description[: available_width - 3] + "..."
                 if len(description) <= available_width:
                     stdscr.addstr(start_y + 1, start_x, description, curses.color_pair(3))
+                else:
+                    words = description.split()
+                    line = ""
+                    y = start_y + 1
+                    max_lines = 2
+                    for word in words:
+                        if len(line) + len(word) + 1 <= available_width:
+                            line += (" " if line else "") + word
+                        else:
+                            if line and y - start_y <= max_lines and y < max_y:
+                                stdscr.addstr(y, start_x, line, curses.color_pair(3))
+                                y += 1
+                                line = word
+                            elif not line:
+                                stdscr.addstr(y, start_x, word[:available_width], curses.color_pair(3))
+                                break
+                            else:
+                                break
+                    if line and y - start_y <= max_lines and y < max_y:
+                        stdscr.addstr(y, start_x, line, curses.color_pair(3))
             except curses.error:
                 pass
 
         # Channel stats (listeners and bitrate) - clear line first
-        if available_width > 0 and start_y + 2 < max_y:
+        if available_width > 0 and start_y + 3 < max_y:
             try:
-                stdscr.move(start_y + 2, start_x)
+                stdscr.move(start_y + 3, start_x)
                 stdscr.clrtoeol()
                 stats_parts = []
                 if current_channel.listeners > 0:
@@ -508,14 +528,14 @@ class UIScreen:
                     if len(stats) > available_width:
                         stats = stats[: available_width - 3] + "..."
                     # Use same style as instructions for consistency
-                    stdscr.addstr(start_y + 2, start_x, stats, curses.color_pair(3))
+                    stdscr.addstr(start_y + 3, start_x, stats, curses.color_pair(3))
             except curses.error:
                 pass
 
         # Current track - clear line first
-        if available_width > 0 and start_y + 4 < max_y:
+        if available_width > 0 and start_y + 5 < max_y:
             try:
-                stdscr.move(start_y + 3, start_x)
+                stdscr.move(start_y + 4, start_x)
                 stdscr.clrtoeol()
                 is_paused = player and player.pause
                 play_symbol = get_play_symbol(is_paused)
@@ -523,12 +543,12 @@ class UIScreen:
                 if len(current_track) > available_width:
                     current_track = current_track[: available_width - 3] + "..."
                 if len(current_track) <= available_width:
-                    stdscr.addstr(start_y + 3, start_x, current_track, curses.color_pair(4) | curses.A_BOLD)
+                    stdscr.addstr(start_y + 4, start_x, current_track, curses.color_pair(4) | curses.A_BOLD)
             except curses.error:
                 pass
 
         # Track history - clear lines first
-        y = start_y + 6
+        y = start_y + 7
         for track in self.track_history:
             if y >= height - 2 or y >= max_y:
                 break
