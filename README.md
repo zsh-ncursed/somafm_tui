@@ -17,7 +17,7 @@ The app combines a minimalist interface, rich features, and low resource consump
 - **📻 40+ Radio Channels** — Access all SomaFM channels directly from your terminal
 - **🎵 Track Metadata** — Real-time display of artist and track title
 - **❤️ Favorites** — Save favorite channels with local persistence
-- **🎨 Color Themes** — 10+ built-in themes (dark and light)
+- **🎨 Color Themes** — 20+ built-in themes (dark and light)
 - **🔊 Volume Control** — Adjust volume and mute toggle
 - **⏱ Sleep Timer** — Auto-shutdown with configurable timer
 - **🔍 Search** — Quick channel search by name and description
