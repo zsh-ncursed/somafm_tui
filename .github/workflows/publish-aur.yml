@@ -116,4 +116,4 @@ jobs:
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to version ${{ steps.get_version.outputs.version }}"
           ssh_keyscan_types: rsa,ed25519
-          updpkgsums: true
+          updpkgsums: false
