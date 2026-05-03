@@ -5,6 +5,20 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.16] - 2026-05-03
+
+### Fixed
+- **UI artifacts** — Improved cleanup of visual artifacts:
+  - Volume indicator now properly clears on timeout (both bar and % symbol)
+  - Help overlay border now properly clears when closed
+  - Help overlay area is cleared before drawing to prevent transparency issues
+
+### Technical
+- Added `invalidate_cache()` on volume timeout for full redraw
+- Added `invalidate_cache()` when help overlay closes
+- Track previous `show_help` state for proper full redraw trigger
+- Modified `player.py` and `ui.py`
+
 ## [0.6.14] - 2026-04-29
 
 ### Added

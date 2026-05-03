@@ -224,6 +224,7 @@ class SomaFMPlayer:
         self.had_error = False
         self._signal_received = False
         self._data_lock = threading.Lock()  # Lock for thread-safe data access
+        self._prev_show_help = False  # Track help state for full redraw on close
         ensure_directories()
         setup_logging()
         self._setup_signal_handlers()
@@ -508,6 +509,10 @@ class SomaFMPlayer:
     def _on_state_change(self) -> None:
         """Callback for state changes."""
         if self.stdscr:
+            # Force full redraw when help overlay closes to clean up artifacts
+            if self._prev_show_help and not self.state.show_help:
+                self.ui_screen.invalidate_cache()
+            self._prev_show_help = self.state.show_help
             self._display_interface()
 
     def _on_theme_change(self, new_theme: str) -> None:
@@ -584,8 +589,8 @@ class SomaFMPlayer:
                         self.ui_screen.volume_display is not None
                         and current_time - self.ui_screen.volume_display_time >= 3
                     ):
-                        # Just reset display state, UI will handle clearing
                         self.ui_screen.volume_display = None
+                        self.ui_screen.invalidate_cache()
                         self._display_interface()
 
                     # Get user input
