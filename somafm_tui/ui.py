@@ -670,6 +670,10 @@ class UIScreen:
         if len(self.track_history) > self.max_history:
             self.track_history.pop()
 
+    def clear_history(self) -> None:
+        """Clear track history."""
+        self.track_history.clear()
+
     def update_metadata(self, metadata: TrackMetadata) -> None:
         """Update current track metadata"""
         if metadata.artist != self.current_metadata.artist or metadata.title != self.current_metadata.title:
