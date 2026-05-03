@@ -29,7 +29,7 @@ def get_bitrate_icon() -> str:
 
 
 def get_volume_icon() -> str:
-    """Get volume icon - returns emoji for Nerd Font or text fallback"""
+    """Get volume icon"""
     return "🔊"
 
 
@@ -70,7 +70,6 @@ class UIScreen:
         self._prev_is_playing: bool = False
         self._prev_metadata_hash: int = 0
         self._prev_search_query: str = ""
-        self._prev_is_searching: bool = False
         self._prev_show_help: bool = False
         self._prev_bitrate: str = ""
         # No forced full redraw interval - partial redraw with clrtoeol() is sufficient
@@ -88,7 +87,6 @@ class UIScreen:
         self._prev_is_playing = False
         self._prev_metadata_hash = 0
         self._prev_search_query = ""
-        self._prev_is_searching = False
         self._prev_show_help = False
         self._prev_bitrate = ""
 
@@ -130,7 +128,6 @@ class UIScreen:
         # Show help overlay if enabled (always full redraw)
         if show_help:
             self._display_help(stdscr, max_y, max_x)
-            self._prev_show_help = show_help
             stdscr.refresh()
             return
 
@@ -151,7 +148,7 @@ class UIScreen:
             current_bitrate != self._prev_bitrate
         )
         metadata_changed = metadata_hash != self._prev_metadata_hash
-        search_changed = search_query != self._prev_search_query or is_searching != self._prev_is_searching
+        search_changed = search_query != self._prev_search_query
         help_changed = show_help != self._prev_show_help
         
         # Cache was invalidated (e.g., after resize or theme change) - force full redraw
@@ -198,7 +195,6 @@ class UIScreen:
         self._prev_is_playing = is_playing
         self._prev_metadata_hash = metadata_hash
         self._prev_search_query = search_query
-        self._prev_is_searching = is_searching
         self._prev_show_help = show_help
         self._prev_bitrate = current_bitrate
 
@@ -215,9 +211,6 @@ class UIScreen:
         stdscr.clear()
         stdscr.bkgd(" ", curses.color_pair(1))
 
-        # Clear volume indicator area to prevent artifacts
-        self._clear_volume_indicator(stdscr)
-
         # Left panel: Channel list
         self._display_channels_panel(
             stdscr, channels, selected_index, scroll_offset, channel_favorites,
@@ -226,7 +219,7 @@ class UIScreen:
 
         # Right panel: Playback info
         self._display_playback_panel(
-            stdscr, split_x + 1, 1, max_x - split_x - 1, panel_height,
+            stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
             current_channel, player, is_playing, current_bitrate,
         )
 
@@ -260,7 +253,7 @@ class UIScreen:
         # Redraw playback info if playback state or metadata changed
         if playback_changed or metadata_changed:
             self._redraw_playback_info(
-                stdscr, split_x + 1, 1, max_x - split_x - 1, panel_height,
+                stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
                 current_channel, player, is_playing, current_bitrate,
             )
 
@@ -271,6 +264,9 @@ class UIScreen:
         # Redraw instructions if footer is shown
         if show_footer:
             self._redraw_instructions(stdscr, max_y, max_x)
+
+        # Display volume indicator (always) - needed for partial redraw
+        self._handle_volume_display(stdscr)
 
         # Refresh screen to show changes
         stdscr.refresh()
@@ -473,43 +469,23 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Channel description - 2 lines (start_y+1 and start_y+2)
-        if available_width > 0 and start_y + 2 < max_y:
+        # Channel description - clear line first
+        if available_width > 0 and start_y + 1 < max_y:
             try:
                 stdscr.move(start_y + 1, start_x)
                 stdscr.clrtoeol()
-                stdscr.move(start_y + 2, start_x)
-                stdscr.clrtoeol()
                 description = current_channel.description or "No description"
+                if len(description) > available_width:
+                    description = description[: available_width - 3] + "..."
                 if len(description) <= available_width:
                     stdscr.addstr(start_y + 1, start_x, description, curses.color_pair(3))
-                else:
-                    words = description.split()
-                    line = ""
-                    y = start_y + 1
-                    max_lines = 2
-                    for word in words:
-                        if len(line) + len(word) + 1 <= available_width:
-                            line += (" " if line else "") + word
-                        else:
-                            if line and y - start_y <= max_lines and y < max_y:
-                                stdscr.addstr(y, start_x, line, curses.color_pair(3))
-                                y += 1
-                                line = word
-                            elif not line:
-                                stdscr.addstr(y, start_x, word[:available_width], curses.color_pair(3))
-                                break
-                            else:
-                                break
-                    if line and y - start_y <= max_lines and y < max_y:
-                        stdscr.addstr(y, start_x, line, curses.color_pair(3))
             except curses.error:
                 pass
 
         # Channel stats (listeners and bitrate) - clear line first
-        if available_width > 0 and start_y + 3 < max_y:
+        if available_width > 0 and start_y + 2 < max_y:
             try:
-                stdscr.move(start_y + 3, start_x)
+                stdscr.move(start_y + 2, start_x)
                 stdscr.clrtoeol()
                 stats_parts = []
                 if current_channel.listeners > 0:
@@ -528,14 +504,14 @@ class UIScreen:
                     if len(stats) > available_width:
                         stats = stats[: available_width - 3] + "..."
                     # Use same style as instructions for consistency
-                    stdscr.addstr(start_y + 3, start_x, stats, curses.color_pair(3))
+                    stdscr.addstr(start_y + 2, start_x, stats, curses.color_pair(3))
             except curses.error:
                 pass
 
         # Current track - clear line first
-        if available_width > 0 and start_y + 5 < max_y:
+        if available_width > 0 and start_y + 4 < max_y:
             try:
-                stdscr.move(start_y + 4, start_x)
+                stdscr.move(start_y + 3, start_x)
                 stdscr.clrtoeol()
                 is_paused = player and player.pause
                 play_symbol = get_play_symbol(is_paused)
@@ -543,12 +519,12 @@ class UIScreen:
                 if len(current_track) > available_width:
                     current_track = current_track[: available_width - 3] + "..."
                 if len(current_track) <= available_width:
-                    stdscr.addstr(start_y + 4, start_x, current_track, curses.color_pair(4) | curses.A_BOLD)
+                    stdscr.addstr(start_y + 3, start_x, current_track, curses.color_pair(4) | curses.A_BOLD)
             except curses.error:
                 pass
 
         # Track history - clear lines first
-        y = start_y + 7
+        y = start_y + 6
         for track in self.track_history:
             if y >= height - 2 or y >= max_y:
                 break
@@ -644,44 +620,16 @@ class UIScreen:
 
     def _handle_volume_display(self, stdscr: curses.window) -> None:
         """Handle volume indicator display"""
-        max_y, max_x = stdscr.getmaxyx()
-        
-        # Position 12 columns from right edge (to account for volume icon)
-        start_x = max_x - 12
-        
-        should_show = self.volume_display is not None and (time.time() - self.volume_display_time) < VOLUME_DISPLAY_TIMEOUT
-        
-        if should_show:
-            for x in range(start_x - 1, max_x):
-                try:
-                    stdscr.addch(1, x, " ")
-                except curses.error:
-                    pass
-            
-            vol_text = f"{self.volume_display}%"
-            stdscr.addstr(1, start_x, vol_text, curses.color_pair(61) | curses.A_BOLD)
-            self.volume_display_was_visible = True
-        else:
-            for x in range(start_x, max_x):
-                try:
-                    stdscr.addch(1, x, " ")
-                except curses.error:
-                    pass
-            
-            if self.volume_display is not None:
+        # Always draw volume indicator if it was recently updated
+        if self.volume_display is not None:
+            elapsed = time.time() - self.volume_display_time
+            if elapsed < VOLUME_DISPLAY_TIMEOUT:
+                # Draw directly
+                self._draw_volume_indicator(stdscr)
+            else:
+                # Time expired, clear and reset
                 self.volume_display = None
                 self.volume_display_time = 0
-                self.volume_display_was_visible = False
-
-    def _clear_volume_indicator(self, stdscr: curses.window) -> None:
-        """Clear volume indicator area"""
-        try:
-            max_y, max_x = stdscr.getmaxyx()
-            # Clear the entire line 1 to be safe
-            for x in range(max_x):
-                stdscr.addch(1, x, " ")
-        except curses.error:
-            pass
 
     def _draw_volume_indicator(self, stdscr: curses.window) -> None:
         """Draw volume indicator"""
@@ -690,13 +638,6 @@ class UIScreen:
         start_y = 1
         start_x = max_x - bar_width - 5
 
-        # First clear the entire volume area to prevent artifacts
-        for x in range(start_x - 5, max_x):
-            try:
-                stdscr.addch(start_y, x, " ")
-            except curses.error:
-                pass
-        
         volume = self.volume_display
         # Use named constants for color pairs
         vol_bar_color = VOLUME_BAR_COLOR_PAIR
@@ -729,10 +670,6 @@ class UIScreen:
         if len(self.track_history) > self.max_history:
             self.track_history.pop()
 
-    def clear_history(self) -> None:
-        """Clear track history."""
-        self.track_history.clear()
-
     def update_metadata(self, metadata: TrackMetadata) -> None:
         """Update current track metadata"""
         if metadata.artist != self.current_metadata.artist or metadata.title != self.current_metadata.title:
@@ -743,7 +680,6 @@ class UIScreen:
         """Show volume indicator"""
         self.volume_display = volume
         self.volume_display_time = time.time()
-        self.volume_display_was_visible = True
 
     def show_notification(self, stdscr: curses.window, message: str, timeout: float = 1.5) -> None:
         """Show notification with automatic screen refresh after closing."""
@@ -897,14 +833,6 @@ class UIScreen:
         box_width = min(HELP_OVERLAY_WIDTH, max_x - 10)  # Limit width to HELP_OVERLAY_WIDTH chars
         box_y = (max_y - box_height) // 2
         box_x = (max_x - box_width) // 2  # Center horizontally
-
-        # Clear overlay area before drawing to prevent artifacts
-        for y in range(box_y, box_y + box_height):
-            try:
-                stdscr.move(y, box_x)
-                stdscr.clrtoeol()
-            except curses.error:
-                pass
 
         try:
             # Draw overlay box manually on main screen (not separate window)
