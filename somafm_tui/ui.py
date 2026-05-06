@@ -450,7 +450,6 @@ class UIScreen:
                         stdscr.clrtoeol()
                         text2 = "Select a channel and press Enter to start"
                         if len(text2) <= available_width:
-                            # Use same color as instructions (pair 5) without A_DIM for better visibility
                             stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5))
                 except curses.error:
                     pass
@@ -639,15 +638,15 @@ class UIScreen:
         start_x = max_x - bar_width - 5
 
         volume = self.volume_display
-        # Use named constants for color pairs
         vol_bar_color = VOLUME_BAR_COLOR_PAIR
         vol_icon_color = VOLUME_ICON_COLOR_PAIR
 
-        # Draw speaker icon
-        vol_icon = get_volume_icon()
-        stdscr.addstr(start_y, start_x - len(vol_icon), vol_icon, curses.color_pair(vol_icon_color) | curses.A_BOLD)
+        # Clear entire area first with spaces
+        clear_str = " " * (bar_width + 5)
+        if start_x - 1 >= 0:
+            stdscr.addstr(start_y, start_x - 1, clear_str)
 
-        # Draw filled blocks
+        # Draw bars
         filled_blocks = int((volume / 100) * bar_width)
         empty_blocks = bar_width - filled_blocks
 
@@ -839,6 +838,11 @@ class UIScreen:
         box_x = (max_x - box_width) // 2  # Center horizontally
 
         try:
+            # Clear area behind overlay first to prevent bleed-through
+            for y in range(box_y, box_y + box_height):
+                stdscr.move(y, box_x)
+                stdscr.clrtoeol()
+
             # Draw overlay box manually on main screen (not separate window)
             stdscr.attron(curses.color_pair(3) | curses.A_BOLD)
             

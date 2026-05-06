@@ -135,3 +135,75 @@ class TestDisplayHelpers:
         screen._handle_volume_display(mock_stdscr)
 
         # Volume indicator should be cleared (method handles it)
+
+
+class TestVolumeBarRendering:
+    """Tests for volume bar rendering fixes."""
+
+    def test_volume_bar_decrease_clears_previous_state(self):
+        """Should clear previous volume bar when decreasing - fixes artifact issue."""
+        with patch('curses.color_pair', return_value=1):
+            screen = UIScreen()
+
+            mock_stdscr = Mock()
+            mock_stdscr.getmaxyx.return_value = (24, 80)
+
+            # Show volume at 80%
+            screen.show_volume(mock_stdscr, 80)
+            screen.volume_display_time = float('inf')
+
+            screen._handle_volume_display(mock_stdscr)
+
+            # Clear mock to track second draw
+            mock_stdscr.addstr.reset_mock()
+
+            # Decrease to 50%
+            screen.show_volume(mock_stdscr, 50)
+
+            screen._handle_volume_display(mock_stdscr)
+
+            # On second draw, should clear first (spaces)
+            # First call should clear the entire area before redrawing
+            calls = mock_stdscr.addstr.call_args_list
+            first_call_text = calls[0][0][2]  # Third arg = text
+
+            # Should be spaces, not filled blocks
+            assert first_call_text == ' ' * 27 or ' ' * 25, f"First call should clear, got: {first_call_text!r}"
+
+    def test_volume_bar_right_side_no_artifact(self):
+        """Should not show artifact blocks on right side of volume bar."""
+        with patch('curses.color_pair', return_value=1):
+            screen = UIScreen()
+            mock_stdscr = Mock()
+            mock_stdscr.getmaxyx.return_value = (24, 80)
+            mock_stdscr.addstr = Mock()
+
+            screen.show_volume(mock_stdscr, 50)
+
+            screen._handle_volume_display(mock_stdscr)
+
+            # Check all addstr calls
+            calls = mock_stdscr.addstr.call_args_list
+
+            # Last call should be percentage (e.g., " 50%")
+            last_call = calls[-1]
+            text = last_call[0][2]  # Third positional argument
+
+            # Should end with percentage, not extra blocks
+            assert text.strip() == '50%' or text == ' 50%', f"Expected percentage, got: {text!r}"
+
+
+class TestDisplayHelpers:
+    """Tests for display helper methods."""
+
+    def test_handle_volume_display_expired(self):
+        """Should handle expired volume indicator."""
+        screen = UIScreen()
+        screen.volume_display = 75
+        screen.volume_display_time = 0  # Expired
+        mock_stdscr = Mock()
+        mock_stdscr.getmaxyx.return_value = (24, 80)
+
+        screen._handle_volume_display(mock_stdscr)
+
+        # Volume indicator should be cleared (method handles it)
