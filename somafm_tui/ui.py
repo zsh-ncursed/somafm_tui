@@ -527,6 +527,9 @@ class UIScreen:
         for track in self.track_history:
             if y >= height - 2 or y >= max_y:
                 break
+            # Skip Loading... entries in history display
+            if track.artist == "Loading..." or track.title == "Loading...":
+                continue
             if available_width > 0:
                 try:
                     # Clear line using clrtoeol
@@ -675,8 +678,12 @@ class UIScreen:
 
     def update_metadata(self, metadata: TrackMetadata) -> None:
         """Update current track metadata"""
+        # Don't allow Loading... to overwrite or be added to history
+        if metadata.artist == "Loading..." or metadata.title == "Loading...":
+            return
         if metadata.artist != self.current_metadata.artist or metadata.title != self.current_metadata.title:
-            self.add_to_history(self.current_metadata)
+            if self.current_metadata.artist != "Loading..." and self.current_metadata.title != "Loading...":
+                self.add_to_history(self.current_metadata)
             self.current_metadata = metadata
 
     def show_volume(self, stdscr: curses.window, volume: int) -> None:
