@@ -523,9 +523,9 @@ class UIScreen:
                 pass
 
         # Track history - clear lines first
-        y = start_y + 6
+        y = start_y + 5
         for track in self.track_history:
-            if y >= height - 2 or y >= max_y:
+            if y >= height - 1 or y >= max_y:
                 break
             # Skip Loading... entries in history display
             if track.artist == "Loading..." or track.title == "Loading...":
@@ -667,6 +667,9 @@ class UIScreen:
 
     def add_to_history(self, metadata: TrackMetadata) -> None:
         """Add track to history"""
+        # Skip duplicates with the most recent entry
+        if self.track_history and self.track_history[0].artist == metadata.artist and self.track_history[0].title == metadata.title:
+            return
         metadata.timestamp = time.strftime("%H:%M:%S")
         self.track_history.insert(0, metadata)
         if len(self.track_history) > self.max_history:
