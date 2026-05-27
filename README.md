@@ -91,6 +91,31 @@ pip install git+https://github.com/zsh-ncursed/somafm_tui.git
 
 After pip installation, the `somafm-tui` command will be available in your PATH.
 
+### Installation via pipx
+
+[pipx](https://pipx.pypa.io/) installs Python CLI applications in isolated environments. Recommended way to install `somafm-tui` without affecting system packages:
+
+```bash
+# Install pipx (if not already installed)
+pip install pipx
+# or on Arch Linux: sudo pacman -S python-pipx
+
+# Install somafm-tui
+pipx install somafm-tui
+```
+
+After installation, run with:
+```bash
+somafm-tui
+```
+
+To update:
+```bash
+pipx upgrade somafm-tui
+```
+
+> **Note:** `mpv` must still be installed on your system via your package manager (see [Dependencies](#dependencies)).
+
 ### Shell Scripts
 
 Quick launch using provided scripts:
