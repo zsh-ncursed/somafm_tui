@@ -22,6 +22,11 @@ The app combines a minimalist interface, rich features, and low resource consump
 - **⏱ Sleep Timer** — Auto-shutdown with configurable timer
 - **🔍 Search** — Quick channel search by name and description
 - **📊 Usage-Based Sorting** — Channels sorted by listening history
+- **🔍 Favorites-Only Mode** — Filter channel list to show only favorites
+- **💚 Add Track to Favorites** — Save currently playing track while listening
+- **🙈 Toggle Hotkey Hints** — Hide/show the bottom footer with keybindings
+- **👥 Listener Count** — Display number of listeners per channel
+- **🎚 Bitrate Selection** — Choose stream quality per channel
 
 ### System Integration
 
