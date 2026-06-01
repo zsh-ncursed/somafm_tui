@@ -520,7 +520,41 @@ tail -n 50 /tmp/.somafmtmp/somafm.log
 
 ## 📊 Screenshots
 
-*(Add screenshots to the `docs/` folder)*
+The TUI supports a wide range of themes. Here are a few highlights.
+
+### Themes
+
+| | |
+|:---:|:---:|
+| **Ayu Dark** | **Solarized Dark** |
+| ![Ayu Dark](img/2026-05-08_17.50.28-scrot.png) | ![Solarized Dark](img/2026-05-08_17.50.34-scrot.png) |
+
+| | |
+|:---:|:---:|
+| **GitHub Dark** | **Monochrome Dark** |
+| ![GitHub Dark](img/2026-05-08_17.50.39-scrot.png) | ![Monochrome Dark](img/2026-05-08_17.50.45-scrot.png) |
+
+| | |
+|:---:|:---:|
+| **Catppuccin** | **Catppuccin (theme change toast)** |
+| ![Catppuccin](img/2026-05-08_17.50.54-scrot.png) | ![Catppuccin with notification](img/2026-05-08_17.50.58-scrot.png) |
+
+| | |
+|:---:|:---:|
+| **Default Dark** | **Solarized Light** |
+| ![Default Dark](img/2026-05-08_17.51.10-scrot.png) | ![Solarized Light](img/2026-05-08_17.51.32-scrot.png) |
+
+| |
+|:---:|
+| **Tokyo Night** |
+| ![Tokyo Night](img/2026-05-08_17.51.55-scrot.png) |
+
+### Browsing & Playback (Ayu Dark)
+
+| | |
+|:---:|:---:|
+| **Ayu Dark** | **Ayu Dark** |
+| ![Channels list view](img/2026-05-28_17.59.20-scrot.png) | ![Now playing view](img/2026-05-28_17.59.25-scrot.png) |
 
 ---
 
