@@ -184,6 +184,8 @@ somafm-tui
 | `f` | Add current track to favorites |
 | `Ctrl+F` | Toggle channel favorite (heart icon) |
 | `t` | Cycle through color themes |
+| `z` | only favorite chanels |
+| `x` | toggle footer |
 | `q` | Quit application |
 
 ### Playback
