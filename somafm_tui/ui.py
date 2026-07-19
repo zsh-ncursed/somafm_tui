@@ -72,6 +72,7 @@ class UIScreen:
         self._prev_search_query: str = ""
         self._prev_show_help: bool = False
         self._prev_bitrate: str = ""
+        self._prev_history_hash: int = 0
         # No forced full redraw interval - partial redraw with clrtoeol() is sufficient
 
     def invalidate_cache(self) -> None:
@@ -89,6 +90,7 @@ class UIScreen:
         self._prev_search_query = ""
         self._prev_show_help = False
         self._prev_bitrate = ""
+        self._prev_history_hash = 0
 
     def display(
         self,
@@ -136,7 +138,13 @@ class UIScreen:
         channels_hash = hash(channels_str)
         favorites_hash = hash(frozenset(channel_favorites))
         metadata_hash = hash(f"{self.current_metadata.artist}:{self.current_metadata.title}")
-        
+        history_hash = hash(
+            tuple(
+                f"{t.artist}:{t.title}:{t.channel_name}:{t.timestamp}"
+                for t in self.track_history
+            )
+        )
+
         # Detect what changed
         channels_changed = channels_hash != self._prev_channels_hash
         selection_changed = selected_index != self._prev_selected_index
@@ -148,9 +156,10 @@ class UIScreen:
             current_bitrate != self._prev_bitrate
         )
         metadata_changed = metadata_hash != self._prev_metadata_hash
+        history_changed = history_hash != self._prev_history_hash
         search_changed = search_query != self._prev_search_query
         help_changed = show_help != self._prev_show_help
-        
+
         # Cache was invalidated (e.g., after resize or theme change) - force full redraw
         cache_invalidated = self._prev_channels_hash == 0
 
@@ -177,7 +186,7 @@ class UIScreen:
                 split_x, panel_height, max_y, max_x, is_searching, search_query,
                 show_footer,
                 selection_changed, scroll_changed, favorites_changed,
-                playback_changed, metadata_changed
+                playback_changed, metadata_changed, history_changed
             )
 
         # Display volume indicator (always)
@@ -197,6 +206,7 @@ class UIScreen:
         self._prev_search_query = search_query
         self._prev_show_help = show_help
         self._prev_bitrate = current_bitrate
+        self._prev_history_hash = history_hash
 
     def _full_redraw(
         self, stdscr: curses.window, channels: List[Channel],
@@ -236,7 +246,7 @@ class UIScreen:
         show_footer: bool = True,
         selection_changed: bool = False, scroll_changed: bool = False,
         favorites_changed: bool = False, playback_changed: bool = False,
-        metadata_changed: bool = False
+        metadata_changed: bool = False, history_changed: bool = False
     ) -> None:
         """Perform partial redraw - only update changed elements.
 
@@ -250,8 +260,8 @@ class UIScreen:
                 split_x, panel_height,
             )
 
-        # Redraw playback info if playback state or metadata changed
-        if playback_changed or metadata_changed:
+        # Redraw playback info if playback state, metadata, or history changed
+        if playback_changed or metadata_changed or history_changed:
             self._redraw_playback_info(
                 stdscr, split_x + 1, 0, max_x - split_x - 1, panel_height,
                 current_channel, player, is_playing, current_bitrate,
@@ -316,8 +326,9 @@ class UIScreen:
         """Redraw only the playback info portion."""
         max_y, max_x = stdscr.getmaxyx()
         
-        # Clear playback area using clrtoeol for each line (efficient and prevents artifacts)
-        for y in range(start_y, min(start_y + 10, max_y)):
+        # Clear the full playback panel area (including history below line 10)
+        # so the track history is always fully redrawn.
+        for y in range(start_y, min(start_y + height, max_y)):
             try:
                 stdscr.move(y, start_x)
                 stdscr.clrtoeol()
@@ -453,6 +464,8 @@ class UIScreen:
                             stdscr.addstr(start_y + 2, start_x, text2, curses.color_pair(5))
                 except curses.error:
                     pass
+            # History is always visible, even when stopped
+            self._display_track_history(stdscr, start_x, start_y + 5, width, height)
             return
 
         # Channel info - clear line first
@@ -522,8 +535,25 @@ class UIScreen:
             except curses.error:
                 pass
 
-        # Track history - clear lines first
-        y = start_y + 5
+        # Track history (always visible, even when stopped)
+        self._display_track_history(stdscr, start_x, start_y + 5, width, height)
+
+    def _display_track_history(
+        self,
+        stdscr: curses.window,
+        start_x: int,
+        start_y: int,
+        width: int,
+        height: int,
+    ) -> None:
+        """Display track history list.
+
+        Always rendered — both while playing and when stopped — so the user
+        can review previously played tracks during the session.
+        """
+        max_y, max_x = stdscr.getmaxyx()
+        available_width = min(width, max_x - start_x)
+        y = start_y
         for track in self.track_history:
             if y >= height - 1 or y >= max_y:
                 break
@@ -536,7 +566,8 @@ class UIScreen:
                     stdscr.move(y, start_x)
                     stdscr.clrtoeol()
                     timestamp = f"[{track.timestamp}] " if track.timestamp else "  "
-                    track_info = f"  {timestamp}{track.artist} - {track.title}"
+                    channel_part = f" ({track.channel_name})" if track.channel_name else ""
+                    track_info = f"  {timestamp}{track.artist} - {track.title}{channel_part}"
                     if len(track_info) > available_width:
                         track_info = track_info[: available_width - 3] + "..."
                     if len(track_info) <= available_width:
@@ -667,10 +698,20 @@ class UIScreen:
 
     def add_to_history(self, metadata: TrackMetadata) -> None:
         """Add track to history"""
-        # Skip duplicates with the most recent entry
-        if self.track_history and self.track_history[0].artist == metadata.artist and self.track_history[0].title == metadata.title:
+        # Skip Loading.../Unknown entries so they never pollute history
+        if metadata.artist in ("Loading...", "Unknown", "") or metadata.title in ("Loading...", "Unknown", ""):
             return
-        metadata.timestamp = time.strftime("%H:%M:%S")
+        # Skip duplicates with the most recent entry (same artist+title+channel)
+        if self.track_history:
+            last = self.track_history[0]
+            if (
+                last.artist == metadata.artist
+                and last.title == metadata.title
+                and last.channel_name == metadata.channel_name
+            ):
+                return
+        if not metadata.timestamp:
+            metadata.timestamp = time.strftime("%H:%M:%S")
         self.track_history.insert(0, metadata)
         if len(self.track_history) > self.max_history:
             self.track_history.pop()
@@ -685,7 +726,10 @@ class UIScreen:
         if metadata.artist == "Loading..." or metadata.title == "Loading...":
             return
         if metadata.artist != self.current_metadata.artist or metadata.title != self.current_metadata.title:
-            if self.current_metadata.artist != "Loading..." and self.current_metadata.title != "Loading...":
+            if self.current_metadata.artist not in ("Loading...", "Unknown", "") and self.current_metadata.title not in ("Loading...", "Unknown", ""):
+                # Preserve channel name on the entry being archived
+                if self.current_metadata.channel_name is None and self.current_channel is not None:
+                    self.current_metadata.channel_name = self.current_channel.title
                 self.add_to_history(self.current_metadata)
             self.current_metadata = metadata
 
@@ -825,7 +869,7 @@ class UIScreen:
             ("", ""),
             ("Channels", "section"),
             ("  /     - Search channels", "normal"),
-            ("  f     - Toggle track favorite", "normal"),
+            ("  f     - Add current track to favorites", "normal"),
             ("  Ctrl+F - Toggle channel favorite", "normal"),
             ("  z     - Show only favorites", "normal"),
             ("  x     - Toggle footer", "normal"),

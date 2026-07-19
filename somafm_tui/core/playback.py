@@ -99,6 +99,17 @@ class PlaybackController:
             if self.player:
                 self.player.stop()
 
+            # Archive the currently playing track (if any) into history BEFORE
+            # switching the channel, so it keeps the correct channel name.
+            if (
+                self.current_channel is not None
+                and self.current_metadata.artist not in ("Loading...", "Unknown", "")
+                and self.current_metadata.title not in ("Loading...", "Unknown", "")
+            ):
+                if self.current_metadata.channel_name is None:
+                    self.current_metadata.channel_name = self.current_channel.title
+                self.ui_screen.add_to_history(self.current_metadata)
+
             # Start playback
             self.player.pause = False
             self.player.play(stream_url)
@@ -173,9 +184,23 @@ class PlaybackController:
             self._on_playback_change()
 
     def stop_playback(self) -> None:
-        """Stop playback."""
+        """Stop playback.
+
+        Track history is preserved so the user can review previously played
+        tracks across channels. Only current metadata/channel are reset.
+        """
         if not self.is_playing:
             return
+
+        # Push the current track into history before stopping (if real metadata)
+        if (
+            self.current_channel is not None
+            and self.current_metadata.artist not in ("Loading...", "Unknown", "")
+            and self.current_metadata.title not in ("Loading...", "Unknown", "")
+        ):
+            if self.current_metadata.channel_name is None:
+                self.current_metadata.channel_name = self.current_channel.title
+            self.ui_screen.add_to_history(self.current_metadata)
 
         self.player.stop()
         self.is_playing = False
@@ -184,7 +209,6 @@ class PlaybackController:
 
         self.current_metadata = TrackMetadata()
         self.ui_screen.current_metadata = self.current_metadata
-        self.ui_screen.clear_history()
 
         if self.mpris_service:
             self.mpris_service.update_playback_status("Stopped")

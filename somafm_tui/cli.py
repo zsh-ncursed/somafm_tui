@@ -39,8 +39,12 @@ Navigation (interactive mode):
   Enter or l    - Play selected channel
   Space         - Pause/Resume playback
   /             - Search channels
-  f             - Toggle favorite
-  t             - Cycle themes
+  f             - Add current track to favorites
+  Ctrl+F        - Toggle channel favorite
+  z             - Show only favorite channels
+  x             - Toggle footer hints
+  t/y           - Cycle theme forward/backward
+  v/b or PgDn/Up - Decrease/increase volume
   s             - Set sleep timer
   q             - Quit
         """,

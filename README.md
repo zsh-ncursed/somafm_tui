@@ -15,25 +15,28 @@ The app combines a minimalist interface, rich features, and low resource consump
 ### Core Features
 
 - **📻 40+ Radio Channels** — Access all SomaFM channels directly from your terminal
-- **🎵 Track Metadata** — Real-time display of artist and track title
-- **❤️ Favorites** — Save favorite channels with local persistence
-- **🎨 Color Themes** — 20+ built-in themes (dark and light)
-- **🔊 Volume Control** — Adjust volume and mute toggle
-- **⏱ Sleep Timer** — Auto-shutdown with configurable timer
-- **🔍 Search** — Quick channel search by name and description
+- **🎵 Track Metadata** — Real-time display of artist and track title, plus a rolling history of recently played tracks (up to 10) that persists across channel switches and stop/start, with channel attribution per entry
+- **❤️ Favorites** — Save favorite channels and individual tracks with local persistence
+- **🎨 Color Themes** — 20+ built-in themes (dark and light); edit `themes.json` and switch with `t`/`y` without restarting
+- **🔊 Volume Control** — Adjust volume with keyboard shortcuts and a temporary on-screen bar
+- **⏱ Sleep Timer** — Auto-shutdown with configurable timer (1–480 minutes)
+- **🔍 Search** — Quick channel search by name and description (volume keys work while searching)
 - **📊 Usage-Based Sorting** — Channels sorted by listening history
-- **🔍 Favorites-Only Mode** — Filter channel list to show only favorites
-- **💚 Add Track to Favorites** — Save currently playing track while listening
-- **🙈 Toggle Hotkey Hints** — Hide/show the bottom footer with keybindings
+- **🔍 Favorites-Only Mode** — Filter channel list to show only favorites (`z`)
+- **💚 Add Track to Favorites** — Save the currently playing track with `f` (add-only)
+- **🙈 Toggle Hotkey Hints** — Hide/show the bottom footer with keybindings (`x`)
 - **👥 Listener Count** — Display number of listeners per channel
 - **🎚 Bitrate Selection** — Choose stream quality per channel
+- **📋 Channel Details** — Description, listeners, and bitrate shown in the playback panel
+- **💬 Toast Notifications** — Brief on-screen messages for theme changes, favorites, and settings
+- **📐 Terminal Resize** — Layout redraws automatically when the terminal window is resized
 
 ### System Integration
 
-- **🎧 MPRIS/D-Bus** — Linux media keys integration (play/pause/next/previous)
-- **🖥 System Tray** — System tray support (via compatible environments)
+- **🎧 MPRIS/D-Bus** — Linux media keys, volume control, metadata, and channel artwork in desktop media applets
 - **⌨️ Vim Navigation** — `j/k` key navigation for Vim users
 - **📦 AUR Package** — Easy installation on Arch Linux via AUR
+- **✅ Dependency Check** — Helpful startup messages if MPV or Python packages are missing
 
 ---
 
@@ -131,6 +134,8 @@ Quick launch using provided scripts:
 
 # Bash/Zsh
 ./somafm.sh
+# or
+./somafm.bash
 ```
 
 ### Dependencies
@@ -171,19 +176,19 @@ Launch the application:
 somafm-tui
 ```
 
+Press `?` in the app for the full in-app help overlay (includes version number).
+
 ### Navigation
 
 | Key | Action |
 |-----|--------|
 | `↑` / `↓` or `j` / `k` | Navigate channel list |
 | `Enter` or `l` | Play selected channel |
-| `PgUp` / `PgDn` or `v` / `b` | Increase/decrease volume |
 | `/` | Search channels |
 | `?` | Toggle help window |
-| `Esc` | Exit search / close help |
-| `f` | Add current track to favorites |
-| `Ctrl+F` | Toggle channel favorite (heart icon) |
-| `t` | Cycle through color themes |
+| `Esc` | Exit search / close help / cancel sleep timer input |
+| `z` | Toggle favorites-only filter (persisted in config) |
+| `x` | Toggle footer with keybinding hints (persisted in config) |
 | `q` | Quit application |
 
 ### Playback
@@ -194,6 +199,17 @@ somafm-tui
 | `h` | Stop playback |
 | `r` | Cycle bitrate (if available) |
 | `s` | Set sleep timer |
+| `PgUp` / `b` | Increase volume (shows temporary volume bar) |
+| `PgDn` / `v` | Decrease volume (shows temporary volume bar) |
+| `f` | Add current track to favorites (requires track metadata) |
+| `Ctrl+F` | Toggle channel favorite (heart icon) |
+
+### Appearance
+
+| Key | Action |
+|-----|--------|
+| `t` | Cycle color theme forward |
+| `y` | Cycle color theme backward |
 
 ### Command-Line Interface
 
@@ -203,39 +219,57 @@ The application supports various CLI arguments for automation and quick actions:
 # Show help
 somafm-tui --help
 
-# List all available channels
+# List all available channels (short: -l)
 somafm-tui --list-channels
 
-# Search for channels
+# Search for channels (short: -s)
 somafm-tui --search "drone"
 
-# Show favorite channels
+# Show favorite channels (short: -f)
 somafm-tui --favorites
 
 # List available themes
 somafm-tui --list-themes
 
-# Play specific channel with custom settings
+# Play channel by ID or title, with custom settings
 somafm-tui --play dronezone --volume 70 --theme dracula
+somafm-tui -p "Drone Zone" -v 50 -t monochrome
 
-# Set sleep timer from command line
-somafm-tui --sleep 30
+# Set sleep timer from command line (minutes)
+somafm-tui --sleep 60
 
 # Disable MPRIS integration
 somafm-tui --no-dbus
 
 # Combine multiple options
-somafm-tui -p groovesalad -v 50 -t monochrome -s 60
+somafm-tui -p groovesalad -v 50 -t monochrome --sleep 30
 ```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--play` | `-p` | Channel ID or title to play on launch |
+| `--volume` | `-v` | Volume level (0–100) |
+| `--theme` | `-t` | Color theme name |
+| `--list-channels` | `-l` | List channels and exit |
+| `--search` | `-s` | Search channels and exit |
+| `--favorites` | `-f` | List favorite channels and exit |
+| `--sleep` | | Sleep timer in minutes (1–480) |
+| `--no-dbus` | | Disable MPRIS/D-Bus |
+| `--list-themes` | | List themes and exit |
+| `--version` | | Print version and exit |
 
 ### MPRIS (Media Keys)
 
-When D-Bus support is enabled (`dbus_allowed: true` in config), the app responds to system media keys:
+When D-Bus support is enabled (`dbus_allowed: true` in config), the app registers as `org.mpris.MediaPlayer2.somafm_tui` and responds to:
 
-- **Play/Pause** — Toggle playback
-- **Next** — Next channel
-- **Previous** — Previous channel
+- **Play/Pause** — Toggle playback (or start the selected channel if stopped)
+- **Next** — Next channel in the list
+- **Previous** — Previous channel in the list
 - **Stop** — Stop playback
+- **Volume** — Set volume via D-Bus property (0.0–1.0)
+- **Quit** — Exit the application
+
+With `dbus_send_metadata = true`, track title and artist are sent to media applets. Enable `dbus_send_metadata_artworks` and `dbus_cache_metadata_artworks` to show channel artwork (cached under `/tmp/.somafmtmp/cache/artworks/`).
 
 ---
 
@@ -243,7 +277,7 @@ When D-Bus support is enabled (`dbus_allowed: true` in config), the app responds
 
 ### Config File
 
-Configuration is stored in `~/.somafm_tui/somafm.cfg`
+Configuration is stored at `~/.config/somafm_tui/somafm.cfg` (XDG Base Directory). On first launch, files from the legacy path `~/.somafm_tui/` are migrated automatically if present.
 
 ```ini
 # Configuration file for SomaFM TUI Player
@@ -254,6 +288,8 @@ Configuration is stored in `~/.somafm_tui/somafm.cfg`
 # dbus_send_metadata_artworks: Send channel picture with metadata over D-Bus (true/false)
 # dbus_cache_metadata_artworks: Cache channel picture locally for D-Bus (true/false)
 # volume: Default volume (0-100)
+# show_only_favorites: Show only favorite channels (true/false)
+# show_footer: Show footer instructions (true/false)
 #
 [somafm]
 theme = default
@@ -262,6 +298,8 @@ dbus_send_metadata = false
 dbus_send_metadata_artworks = false
 dbus_cache_metadata_artworks = true
 volume = 100
+show_only_favorites = false
+show_footer = true
 ```
 
 ### Configuration Examples
@@ -331,7 +369,7 @@ Run `somafm-tui --list-themes` to see all available themes:
 | `ayu-light` | Ayu Light — Clean light theme with orange accents |
 | `material-light` | Material Light — Google Material Design light theme |
 
-See `themes.json` for complete color definitions.
+See `somafm_tui/themes.json` for complete color definitions. Themes are reloaded from this file when you switch themes with `t` or `y` — no restart required.
 
 ### Enabling MPRIS
 
@@ -352,11 +390,15 @@ The app will then appear in media control systems (GNOME, KDE, etc.)
 
 | Path | Purpose |
 |------|---------|
-| `~/.somafm_tui/somafm.cfg` | Configuration file |
-| `~/.somafm_tui/channel_favorites.json` | Favorite channels |
-| `~/.somafm_tui/channel_usage.json` | Listening history |
-| `/tmp/.somafmtmp/` | Temporary files and cache |
-| `/tmp/.somafmtmp/cache/` | Channel cache |
+| `~/.config/somafm_tui/somafm.cfg` | Configuration file |
+| `~/.config/somafm_tui/channel_favorites.json` | Favorite channels |
+| `~/.config/somafm_tui/channel_usage.json` | Channel listening history (for sorting) |
+| `~/.config/somafm_tui/track_favorites.json` | Favorite tracks |
+| `/tmp/.somafmtmp/somafm.log` | Application log (DEBUG level) |
+| `/tmp/.somafmtmp/cache/channels.json` | SomaFM API channel cache (1 hour TTL) |
+| `/tmp/.somafmtmp/cache/artworks/` | Cached channel artwork for MPRIS |
+
+> **Legacy path:** `~/.somafm_tui/` — migrated to `~/.config/somafm_tui/` on first run.
 
 ### Data Formats
 
@@ -365,12 +407,25 @@ The app will then appear in media control systems (GNOME, KDE, etc.)
 ["dronezone", "beatblender", "groovesalad"]
 ```
 
-**History** (`channel_usage.json`):
+**Channel usage** (`channel_usage.json`) — Unix timestamps for usage-based sorting:
 ```json
 {
   "dronezone": 1709481600,
   "beatblender": 1709395200
 }
+```
+
+**Track favorites** (`track_favorites.json`):
+```json
+[
+  {
+    "artist": "Artist Name",
+    "title": "Track Title",
+    "channel_id": "dronezone",
+    "channel_name": "Drone Zone",
+    "added_at": "2026-05-03 12:34:56"
+  }
+]
 ```
 
 ---
@@ -433,7 +488,7 @@ ping api.somafm.com
 
 2. **Reset configuration:**
    ```bash
-   rm ~/.somafm_tui/somafm.cfg
+   rm ~/.config/somafm_tui/somafm.cfg
    somafm-tui
    ```
 
@@ -441,9 +496,9 @@ ping api.somafm.com
    - Ensure system volume is not muted
    - Verify audio device is selected correctly in MPV
 
-### Emojis Display Incorrectly
+### Unicode Symbols Display Incorrectly
 
-The app automatically uses ASCII symbols in terminals without Unicode support. To force ASCII, ensure `TERM` is set correctly:
+Listener count and bitrate use ASCII labels (`[L]`, `[B]`). Other UI symbols (play/pause, favorites, volume) use Unicode. If characters render as boxes or question marks, use a Unicode-capable terminal and font:
 
 ```bash
 export TERM=xterm-256color
@@ -496,13 +551,8 @@ export TERM=xterm-256color
 
 ### Logs and Debugging
 
-Enable verbose logging:
+The app writes DEBUG-level logs to `/tmp/.somafmtmp/somafm.log` automatically:
 
-```bash
-somafm-tui --verbose
-```
-
-View logs:
 ```bash
 # Real-time log viewing
 tail -f /tmp/.somafmtmp/somafm.log
@@ -512,9 +562,10 @@ tail -n 50 /tmp/.somafmtmp/somafm.log
 ```
 
 **Common log messages:**
-- `Using cached channels` — Cache is working correctly
+- `Using cached channels` — Channel cache is working (refreshed hourly; stale cache used if API is unreachable)
 - `Timeout fetching` — Network issues, retrying automatically
 - `MPRIS service disabled` — D-Bus integration is off (expected if `dbus_allowed = false`)
+- `Migrated ... from ~/.somafm_tui` — Legacy config was moved to XDG path
 
 ---
 
@@ -603,6 +654,8 @@ Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
 - [ ] Last.fm integration (scrobbling)
 - [ ] Support for other streaming services
 - [ ] GUI settings via ncurses dialogs
+- [ ] Mute toggle
+- [ ] System tray integration
 
 ---
 
