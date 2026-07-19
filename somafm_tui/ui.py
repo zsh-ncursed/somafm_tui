@@ -286,7 +286,11 @@ class UIScreen:
         selected_index: int, scroll_offset: int, channel_favorites: Set[str],
         split_x: int, panel_height: int
     ) -> None:
-        """Redraw only the channel list portion."""
+        """Redraw only the channel list portion.
+
+        Only clears within the channel panel width so the playback panel
+        (which holds the track history) is not wiped on every selection move.
+        """
         max_y, max_x = stdscr.getmaxyx()
         visible_channels = panel_height - 3
         start_y = 0  # Channel list always starts at y=0
@@ -305,9 +309,10 @@ class UIScreen:
             display_title = f"{fav_icon}{title}"
 
             try:
-                # Clear line using clrtoeol to prevent text remnants on resize
-                stdscr.move(display_y, 0)
-                stdscr.clrtoeol()
+                # Clear only within the channel panel (write spaces) so we
+                # don't wipe the playback panel on the right.
+                blank = " " * (split_x - 1)
+                stdscr.addstr(display_y, 0, blank[:split_x - 1], curses.color_pair(1))
 
                 if i + scroll_offset == selected_index:
                     stdscr.addstr(display_y, 0, f"> {display_title}"[:split_x - 1],
@@ -349,8 +354,10 @@ class UIScreen:
         prompt = f"Search: {search_query}"
         prompt_y = panel_height - 2
         try:
-            stdscr.move(prompt_y, 0)
-            stdscr.clrtoeol()
+            # Clear only within the channel panel so the playback panel
+            # (track history) is not wiped during search.
+            blank = " " * (split_x - 1)
+            stdscr.addstr(prompt_y, 0, blank, curses.color_pair(2))
             stdscr.addstr(prompt_y, 0, prompt[:split_x - 1], curses.color_pair(2) | curses.A_BOLD)
             curses.curs_set(1)
             stdscr.move(prompt_y, len(prompt))
@@ -402,9 +409,10 @@ class UIScreen:
             display_title = f"{fav_icon}{title}"
 
             try:
-                # Clear line first using clrtoeol to prevent text remnants
-                stdscr.move(display_y, start_x)
-                stdscr.clrtoeol()
+                # Clear only within the channel panel width so the playback
+                # panel (which holds the track history) is not wiped.
+                blank = " " * (width - 1)
+                stdscr.addstr(display_y, start_x, blank[:width - 1], curses.color_pair(1))
 
                 if i + scroll_offset == selected_index:
                     stdscr.addstr(
@@ -420,8 +428,10 @@ class UIScreen:
             prompt = f"Search: {search_query}"
             prompt_y = start_y + height - 2
             try:
-                stdscr.move(prompt_y, start_x)
-                stdscr.clrtoeol()
+                # Clear only within the channel panel width to avoid wiping
+                # the playback panel (track history) during search.
+                blank = " " * (width - 1)
+                stdscr.addstr(prompt_y, start_x, blank, curses.color_pair(2))
                 stdscr.addstr(prompt_y, start_x, prompt[: width - 1], curses.color_pair(2) | curses.A_BOLD)
                 curses.curs_set(1)
                 stdscr.move(prompt_y, start_x + len(prompt))

@@ -153,6 +153,35 @@ class TestMetadataHistory:
         assert screen.track_history[0].channel_name == "Groove Salad"
 
 
+class TestChannelListRedraw:
+    """Tests that channel list redraw does not wipe the playback panel."""
+
+    def test_redraw_channel_list_does_not_clear_right_panel(self):
+        """_redraw_channel_list must NOT use clrtoeol (which clears the whole
+        row); it should only blank within the channel panel width so the
+        track history on the right is preserved during navigation."""
+        with patch('curses.color_pair', return_value=1):
+            screen = UIScreen()
+            mock_stdscr = Mock()
+            mock_stdscr.getmaxyx.return_value = (24, 80)
+            channels = [Channel(id=f"c{i}", title=f"Ch{i}") for i in range(5)]
+
+            screen._redraw_channel_list(
+                mock_stdscr, channels, selected_index=0, scroll_offset=0,
+                channel_favorites=set(), split_x=30, panel_height=22,
+            )
+
+            # clrtoeol would wipe the playback panel — assert it's NOT called
+            mock_stdscr.clrtoeol.assert_not_called()
+
+            # Verify channel text was drawn
+            addstr_calls = [c.args for c in mock_stdscr.addstr.call_args_list]
+            channel_drawn = any(
+                len(a) >= 3 and "Ch0" in str(a[2]) for a in addstr_calls
+            )
+            assert channel_drawn, "Channel row should be drawn"
+
+
 class TestNotification:
     """Tests for notification methods."""
 

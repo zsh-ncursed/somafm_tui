@@ -5,6 +5,24 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-07-19
+
+### Fixed
+- **Track history disappeared when navigating the channel list** — the channel
+  panel redraw used `clrtoeol()` which clears the whole row, wiping the
+  playback panel (and the track history) every time the selection moved.
+  Channel rows and the search prompt now blank only within the channel
+  panel width, so the track history stays visible during navigation as long
+  as at least one track has been played in the session.
+
+### Technical
+- `somafm_tui/ui.py`: `_redraw_channel_list` and `_display_channels_panel`
+  now write spaces within `split_x`/`width` instead of calling `clrtoeol()`;
+  `_redraw_search_prompt` and the search prompt inside
+  `_display_channels_panel` were likewise constrained.
+- `tests/test_ui.py`: added regression test asserting `clrtoeol` is not
+  called from `_redraw_channel_list`.
+
 ## [0.8.0] - 2026-07-19
 
 ### Added
