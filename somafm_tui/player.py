@@ -121,7 +121,6 @@ from somafm_tui.cli import (
     print_favorites,
     print_themes,
 )
-from somafm_tui.constants import HELP_OVERLAY_WIDTH, HELP_OVERLAY_HEIGHT
 
 
 # Constants
@@ -225,6 +224,7 @@ class SomaFMPlayer:
         self._signal_received = False
         self._data_lock = threading.Lock()  # Lock for thread-safe data access
         self._prev_show_help = False  # Track help state for full redraw on close
+        self._prev_sleep_overlay = False  # Track sleep overlay for ghost cleanup
         ensure_directories()
         setup_logging()
         self._setup_signal_handlers()
@@ -405,10 +405,16 @@ class SomaFMPlayer:
                         if separator in track_info:
                             parts = track_info.split(separator, 1)
                             if len(parts) == 2:
+                                channel_name = (
+                                    self.playback.current_channel.title
+                                    if self.playback.current_channel
+                                    else None
+                                )
                                 metadata = TrackMetadata(
                                     artist=parts[0].strip(),
                                     title=parts[1].strip(),
                                     duration="--:--",
+                                    channel_name=channel_name,
                                 )
                                 self.playback.update_metadata(metadata)
                                 if self.stdscr:
@@ -445,8 +451,10 @@ class SomaFMPlayer:
         panel_height = max_y - 2
         self.state.update_scroll_offset(panel_height)
 
-        # Clear sleep overlay area if overlay is not active (prevent ghost overlay)
-        if not self.state.sleep_overlay_active:
+        # If the sleep overlay was just closed, clear its region so it does
+        # not leave ghost artifacts. We only do this on the transition so we
+        # don't wipe the playback panel (and the track history it holds).
+        if self._prev_sleep_overlay and not self.state.sleep_overlay_active:
             try:
                 overlay_width = 30
                 overlay_height = 7
@@ -457,21 +465,8 @@ class SomaFMPlayer:
                     self.stdscr.clrtoeol()
             except curses.error:
                 pass
-
-# Clear sleep overlay area if overlay is not active (prevent ghost overlay)
-        if not self.state.sleep_overlay_active:
-            try:
-                # Must match _display_help centering exactly
-                help_width = min(HELP_OVERLAY_WIDTH, max_x - 10)
-                help_text_lines = 28  # Number of lines in help_text from _display_help
-                help_height = help_text_lines + 2
-                help_y = (max_y - help_height) // 2
-                help_x = (max_x - help_width) // 2
-                for y in range(help_y, min(help_y + help_height, max_y)):
-                    self.stdscr.move(y, help_x)
-                    self.stdscr.clrtoeol()
-            except curses.error:
-                pass
+            self.ui_screen.invalidate_cache()
+        self._prev_sleep_overlay = self.state.sleep_overlay_active
 
         self.ui_screen.display(
             self.stdscr,

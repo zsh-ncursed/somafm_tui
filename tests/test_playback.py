@@ -301,6 +301,42 @@ class TestPlayChannel:
 
         callback.assert_called_once()
 
+    def test_play_channel_archives_previous_track_with_old_channel_name(self):
+        """When switching channels, previous track should be archived with the
+        OLD channel's name (not the new one)."""
+        player_instance = Mock()
+        ch1 = Channel(id="a", title="Channel A", stream_url="https://test.com/a.pls")
+        ch2 = Channel(id="b", title="Channel B", stream_url="https://test.com/b.pls")
+        player_instance.channels = [ch1, ch2]
+        mpv_player = Mock()
+        ui_screen = Mock(spec=UIScreen)
+
+        controller = PlaybackController(
+            player_instance=player_instance,
+            mpv_player=mpv_player,
+            ui_screen=ui_screen,
+            state_manager=Mock(),
+            config={},
+            cache_dir="/tmp/cache",
+            channel_usage_file="/tmp/usage.json",
+            channel_favorites_file="/tmp/favorites.json",
+            track_favorites_file="/tmp/tracks.json",
+        )
+
+        # Simulate that ch1 was already playing with a real track
+        controller.current_channel = ch1
+        controller.is_playing = True
+        controller.current_metadata = TrackMetadata(artist="Artist", title="Title")
+
+        with patch('somafm_tui.core.playback.load_channel_usage', return_value={}), \
+             patch('somafm_tui.core.playback.clean_channel_usage', return_value={}):
+            controller.play_channel(ch2, 1)
+
+        # Previous track should be archived with Channel A's name
+        controller.ui_screen.add_to_history.assert_called_once()
+        archived = controller.ui_screen.add_to_history.call_args[0][0]
+        assert archived.channel_name == "Channel A"
+
 
 class TestTogglePlayback:
     """Tests for toggle_playback method."""
@@ -409,6 +445,37 @@ class TestStopPlayback:
         controller.stop_playback()
 
         callback.assert_called_once()
+
+    def test_stop_playback_preserves_history(self):
+        """Should NOT clear track history on stop (regression: h cleared history)."""
+        controller = self._create_controller()
+        controller.is_playing = True
+        controller.is_paused = False
+        controller.current_channel = Channel(id="test", title="Test Channel")
+        controller.current_metadata = TrackMetadata(
+            artist="Artist", title="Title", channel_name="Test Channel"
+        )
+
+        controller.stop_playback()
+
+        # History should NOT be cleared; current track should be archived
+        controller.ui_screen.clear_history.assert_not_called()
+        controller.ui_screen.add_to_history.assert_called_once()
+        archived = controller.ui_screen.add_to_history.call_args[0][0]
+        assert archived.artist == "Artist"
+        assert archived.title == "Title"
+        assert archived.channel_name == "Test Channel"
+
+    def test_stop_playback_skips_loading_metadata_in_history(self):
+        """Should not archive Loading... metadata to history on stop."""
+        controller = self._create_controller()
+        controller.is_playing = True
+        controller.current_channel = Channel(id="test", title="Test Channel")
+        controller.current_metadata = TrackMetadata(artist="Loading...", title="Loading...")
+
+        controller.stop_playback()
+
+        controller.ui_screen.add_to_history.assert_not_called()
 
     def _create_controller(self):
         """Helper to create controller."""

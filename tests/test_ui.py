@@ -107,6 +107,51 @@ class TestMetadataHistory:
 
         assert screen.current_metadata is metadata
 
+    def test_add_to_history_stores_channel_name(self):
+        """History entries should preserve channel_name."""
+        screen = UIScreen()
+        meta = TrackMetadata(artist="Artist", title="Title", channel_name="Drone Zone")
+
+        screen.add_to_history(meta)
+
+        assert len(screen.track_history) == 1
+        assert screen.track_history[0].channel_name == "Drone Zone"
+
+    def test_add_to_history_skips_loading_entries(self):
+        """Loading.../Unknown entries must never enter history."""
+        screen = UIScreen()
+
+        screen.add_to_history(TrackMetadata(artist="Loading...", title="Loading..."))
+        screen.add_to_history(TrackMetadata(artist="Unknown", title="Unknown"))
+        screen.add_to_history(TrackMetadata(artist="", title=""))
+
+        assert screen.track_history == []
+
+    def test_add_to_history_dedup_with_channel(self):
+        """Duplicates are detected per channel (same track on different
+        channels should both be kept)."""
+        screen = UIScreen()
+        a = TrackMetadata(artist="A", title="T", channel_name="Ch1")
+        b = TrackMetadata(artist="A", title="T", channel_name="Ch2")
+
+        screen.add_to_history(a)
+        screen.add_to_history(b)
+
+        assert len(screen.track_history) == 2
+
+    def test_update_metadata_preserves_channel_name_on_archive(self):
+        """When archiving current_metadata into history, channel_name should
+        be filled from current_channel if missing."""
+        screen = UIScreen()
+        ch = Channel(id="x", title="Groove Salad")
+        screen.current_channel = ch
+        screen.current_metadata = TrackMetadata(artist="Old", title="Old")
+
+        screen.update_metadata(TrackMetadata(artist="New", title="New"))
+
+        assert len(screen.track_history) == 1
+        assert screen.track_history[0].channel_name == "Groove Salad"
+
 
 class TestNotification:
     """Tests for notification methods."""

@@ -22,6 +22,7 @@ python -m somafm_tui
 # Or via shell scripts
 ./somafm.fish    # Fish shell
 ./somafm.sh      # Bash/Zsh
+./somafm.bash    # Bash/Zsh (alternate launcher)
 ```
 
 ## Requirements
@@ -50,7 +51,7 @@ somafm_tui/
 ├── PKGBUILD            # AUR package build file
 ├── somafm.sh           # Bash/Zsh launcher script
 ├── somafm.fish         # Fish shell launcher script
-└── somafm.bash         # Bash completion script
+└── somafm.bash         # Bash/Zsh launcher script (alternate)
 ```
 
 ## Development

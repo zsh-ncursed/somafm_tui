@@ -5,6 +5,52 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-19
+
+### Added
+- **Persistent track history across channels** — Track history is no longer
+  wiped when switching channels or stopping playback:
+  - Previously played tracks remain visible in the playback panel after `h`
+    (stop) and while the next channel is playing.
+  - Each history line now includes the channel name:
+    `[HH:MM:SS] Artist - Title (Channel Name)`.
+  - History accumulates across channels during the whole session, giving a
+    full playback log with channel attribution.
+  - `TrackMetadata` gained a `channel_name` field (included in
+    `to_dict()`/`from_dict()` for MPRIS consumers).
+
+### Fixed
+- **Stop key (`h`) cleared track history** — Stop now archives the currently
+  playing track (if real metadata is available) instead of discarding the
+  whole list.
+- **Wrong channel name on track switch** — When switching channels, the
+  previously playing track is now archived with the **old** channel's name,
+  not the new one.
+- **`Loading...`/`Unknown` entries leaking into history** —
+  `UIScreen.add_to_history` now filters placeholder metadata and deduplicates
+  by artist + title + channel.
+- **Overlay cleanup wiped the playback panel** — The per-frame overlay-area
+  cleanup in `_display_interface` was clearing the right-hand panel (including
+  the track history). It now runs only on the active→inactive transition of
+  the sleep overlay, and `invalidate_cache()` is called so the panel is fully
+  redrawn.
+
+### Technical
+- `somafm_tui/models.py`: `TrackMetadata.channel_name` field + (de)serialization.
+- `somafm_tui/core/playback.py`: `stop_playback` preserves history and archives
+  the current track; `play_channel` archives the previous track with the old
+  channel's name before switching.
+- `somafm_tui/player.py`: metadata observer passes `channel_name` into
+  `TrackMetadata`; removed per-frame overlay cleanup; track sleep-overlay
+  transitions via `_prev_sleep_overlay` for ghost-artifact cleanup.
+- `somafm_tui/ui.py`: extracted `_display_track_history()` (always rendered,
+  both while playing and when stopped); added `history_hash` to the
+  change-detection cache so partial redraws repaint the history; full-panel
+  clear in `_redraw_playback_info` instead of the fixed 10-line window.
+- `tests/test_playback.py`, `tests/test_ui.py`: +7 tests covering history
+  preservation on stop, channel-name attribution on switch, and
+  `Loading...`/`Unknown` filtering.
+
 ## [0.6.16] - 2026-05-03
 
 ### Fixed

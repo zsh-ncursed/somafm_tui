@@ -25,6 +25,7 @@ class TrackMetadata:
     title: str = "Loading..."
     duration: str = "--:--"
     timestamp: Optional[str] = None
+    channel_name: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -33,6 +34,7 @@ class TrackMetadata:
             "title": self.title,
             "duration": self.duration,
             "timestamp": self.timestamp,
+            "channel_name": self.channel_name,
         }
 
     @classmethod
@@ -43,6 +45,7 @@ class TrackMetadata:
             title=data.get("title", "Loading..."),
             duration=data.get("duration", "--:--"),
             timestamp=data.get("timestamp"),
+            channel_name=data.get("channel_name"),
         )
 
 
