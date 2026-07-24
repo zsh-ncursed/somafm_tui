@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import Mock, patch, call
 import curses
 
+from somafm_tui import ui as ui_module
 from somafm_tui.ui import (
     UIScreen,
     get_listener_icon,
@@ -12,6 +13,7 @@ from somafm_tui.ui import (
     get_play_symbol,
     get_music_symbol,
     get_favorite_icon,
+    get_channel_icon,
 )
 from somafm_tui.models import Channel, TrackMetadata
 
@@ -46,6 +48,69 @@ class TestIconFunctions:
     def test_get_favorite_icon(self):
         """Should return favorite icon."""
         assert get_favorite_icon() == "♥"
+
+
+class TestChannelIcons:
+    """Tests for genre-specific channel icons."""
+
+    def setup_method(self):
+        # Reset the module-level emoji cache between tests so env/term
+        # monkeypatching actually takes effect.
+        ui_module._emoji_enabled_cache = None
+
+    def teardown_method(self):
+        ui_module._emoji_enabled_cache = None
+
+    def test_known_channel_with_emoji_on(self, monkeypatch):
+        """Mapped channel id returns its emoji when emoji is enabled."""
+        monkeypatch.setenv("SOMAFM_EMOJI", "1")
+        assert get_channel_icon("dronezone") == "🧊"
+        assert get_channel_icon("fluid") == "🌧️"
+        assert get_channel_icon("defcon") == "💻"
+
+    def test_unknown_channel_with_emoji_on(self, monkeypatch):
+        """Unknown channel id falls back to the generic emoji."""
+        monkeypatch.setenv("SOMAFM_EMOJI", "1")
+        assert get_channel_icon("unknownid") == "🎵"
+
+    def test_emoji_disabled_returns_note(self, monkeypatch):
+        """When emoji is disabled, returns the plain music note (no squares)."""
+        monkeypatch.setenv("SOMAFM_EMOJI", "0")
+        assert get_channel_icon("dronezone") == "♪"
+        assert get_channel_icon("unknownid") == "♪"
+
+    def test_emoji_env_unrecognised_value_enables(self, monkeypatch):
+        """SOMAFM_EMOJI with any non-falsy value enables emoji (explicit override)."""
+        monkeypatch.setenv("SOMAFM_EMOJI", "maybe")
+        assert get_channel_icon("dronezone") == "🧊"
+
+    def test_emoji_env_falsy_values_disable(self, monkeypatch):
+        """Recognised falsy values disable emoji."""
+        for v in ("0", "false", "no", "off", ""):
+            monkeypatch.setenv("SOMAFM_EMOJI", v)
+            ui_module._emoji_enabled_cache = None
+            assert get_channel_icon("dronezone") == "♪", f"value {v!r} should disable"
+
+    def test_emoji_auto_detect_term_linux_off(self, monkeypatch):
+        """TERM=linux (linux tty) disables emoji even without env override."""
+        monkeypatch.delenv("SOMAFM_EMOJI", raising=False)
+        monkeypatch.setenv("TERM", "linux")
+        assert get_channel_icon("dronezone") == "♪"
+
+    def test_emoji_auto_detect_known_term_program(self, monkeypatch):
+        """Known modern TERM_PROGRAM enables emoji when no env override."""
+        monkeypatch.delenv("SOMAFM_EMOJI", raising=False)
+        monkeypatch.delenv("TERM", raising=False)
+        monkeypatch.setenv("TERM_PROGRAM", "kitty")
+        assert get_channel_icon("dronezone") == "🧊"
+
+    def test_emoji_auto_detect_unknown_terminal_off(self, monkeypatch):
+        """Unrecognised terminal without COLORTERM -> safe fallback to ♪."""
+        monkeypatch.delenv("SOMAFM_EMOJI", raising=False)
+        monkeypatch.delenv("TERM_PROGRAM", raising=False)
+        monkeypatch.delenv("COLORTERM", raising=False)
+        monkeypatch.setenv("TERM", "xterm-256color")
+        assert get_channel_icon("dronezone") == "♪"
 
 
 class TestUIScreenInit:

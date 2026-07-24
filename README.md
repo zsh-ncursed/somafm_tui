@@ -28,6 +28,7 @@ The app combines a minimalist interface, rich features, and low resource consump
 - **👥 Listener Count** — Display number of listeners per channel
 - **🎚 Bitrate Selection** — Choose stream quality per channel
 - **📋 Channel Details** — Description, listeners, and bitrate shown in the playback panel
+- **🎭 Channel Icons** — Genre-specific emoji in the playback panel, auto-detected per terminal. Falls back to `♪` when emoji fonts are unavailable (no missing-glyph squares). Override with `SOMAFM_EMOJI=0`/`=1`
 - **💬 Toast Notifications** — Brief on-screen messages for theme changes, favorites, and settings
 - **📐 Terminal Resize** — Layout redraws automatically when the terminal window is resized
 
@@ -145,6 +146,7 @@ Quick launch using provided scripts:
 - **python-requests** — HTTP client for API requests
 - **python-mpv** — MPV Python bindings
 - **python-dbus-next** — D-Bus integration for MPRIS (optional)
+- **Emoji font** — For channel icons in the playback panel (optional). Without one, the app falls back to the plain `♪` symbol. Recommended: [Noto Color Emoji](https://github.com/googlefonts/noto-emoji) (`noto-fonts-emoji` on Arch, `fonts-noto-color-emoji` on Debian/Ubuntu). Override auto-detection with `SOMAFM_EMOJI=0` or `=1`
 
 #### Installing Dependencies on Different Distributions
 

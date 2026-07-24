@@ -5,6 +5,32 @@ All notable changes to SomaFM TUI Player will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-24
+
+### Added
+- **Channel Icons** — Genre-specific emoji are now shown next to the channel
+  title in the playback panel (right side). Each of the 46 SomaFM channels has
+  a hand-picked icon matching its genre (e.g. `🧊` Drone Zone, `💻` DEF CON
+  Radio, `🌧️` Fluid, `🥃` Boot Liquor). The feature is auto-detected per
+  terminal: modern emulators (kitty, WezTerm, foot, ghostty, iTerm2, Alacritty,
+  tmux, …) and any `COLORTERM=truecolor` terminal get emoji; Linux TTYs and
+  unrecognised terminals fall back to the plain `♪` symbol — no missing-glyph
+  squares. Override auto-detection with the `SOMAFM_EMOJI` environment
+  variable (`=1` to force on, `=0` to force off). Requires an emoji font
+  such as [Noto Color Emoji](https://github.com/googlefonts/noto-emoji)
+  (`noto-fonts-emoji` on Arch, `fonts-noto-color-emoji` on Debian/Ubuntu).
+
+### Technical
+- `somafm_tui/ui.py`: added `CHANNEL_ICONS` map, `_emoji_enabled()` detector
+  (cached), and `get_channel_icon(channel_id)` helper. `_display_playback_panel`
+  now uses `get_channel_icon(current_channel.id)` instead of the static
+  `get_music_symbol()`.
+- `tests/test_ui.py`: added `TestChannelIcons` with 8 cases covering known and
+  unknown channel ids, emoji enabled/disabled, env-override truthiness, and
+  auto-detection of `TERM=linux`, `TERM_PROGRAM`, and unrecognised terminals.
+- `README.md`: new "Channel Icons" entry under Core Features; optional "Emoji
+  font" system dependency documented with per-distro package names.
+
 ## [0.8.1] - 2026-07-19
 
 ### Fixed

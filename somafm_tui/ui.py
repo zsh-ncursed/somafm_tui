@@ -17,6 +17,120 @@ from .constants import (
     HELP_OVERLAY_WIDTH,
 )
 
+# Emoji-capable terminals we explicitly trust. Conservative: if not in this
+# set and no env override, fall back to the plain music note (no squares).
+_EMOJI_TERM_PROGRAMS = frozenset({
+    "WezTerm", "kitty", "foot", "footclient", "ghostty",
+    "iTerm.app", "Apple_Terminal", "vscode",
+    "Alacritty", "tmux", "screen", "Hyper",
+})
+
+_EMOJI_COLORTERM = frozenset({"truecolor", "24bit"})
+
+_emoji_enabled_cache: Optional[bool] = None
+
+
+def _emoji_enabled() -> bool:
+    """Decide whether to show emoji icons.
+
+    Priority:
+    1. SOMAFM_EMOJI env var ("0" -> off, "1" -> on)
+    2. Linux tty (TERM=linux) -> off
+    3. Known modern TERM_PROGRAM -> on
+    4. COLORTERM truecolor/24bit -> on
+    5. Otherwise -> off (safe default, no squares)
+    """
+    global _emoji_enabled_cache
+    if _emoji_enabled_cache is not None:
+        return _emoji_enabled_cache
+
+    env = os.environ.get("SOMAFM_EMOJI")
+    if env is not None:
+        _emoji_enabled_cache = env.strip() not in ("0", "false", "no", "off", "")
+        return _emoji_enabled_cache
+
+    if os.environ.get("TERM") == "linux":
+        _emoji_enabled_cache = False
+        return False
+
+    if os.environ.get("TERM_PROGRAM") in _EMOJI_TERM_PROGRAMS:
+        _emoji_enabled_cache = True
+        return True
+
+    if os.environ.get("COLORTERM", "").lower() in _EMOJI_COLORTERM:
+        _emoji_enabled_cache = True
+        return True
+
+    _emoji_enabled_cache = False
+    return False
+
+
+# Genre-specific icons for SomaFM channels (by channel id).
+# Fallback for unknown ids: musical note emoji when emoji is on.
+CHANNEL_ICONS: Dict[str, str] = {
+    "7soul":          "💿",
+    "beatblender":    "🎚️",
+    "bootliquor":     "🥃",
+    "brfm":           "🏜️",
+    "cliqhop":        "🤖",
+    "covers":         "🎤",
+    "deepspaceone":   "🌌",
+    "defcon":         "💻",
+    "digitalis":      "🎸",
+    "doomed":         "💀",
+    "dronezone":      "🧊",
+    "dz2":            "🧊",
+    "dubstep":        "🔊",
+    "fluid":          "🌧️",
+    "folkfwd":        "🪕",
+    "groovesalad":    "🥗",
+    "groovesalad2":   "🥗",
+    "gsclassic":      "🥗",
+    "illstreet":      "🍸",
+    "indiepop":       "🍒",
+    "live":           "📡",
+    "lush":           "🌸",
+    "missioncontrol": "🚀",
+    "poptron":        "✨",
+    "secretagent":    "🕵️",
+    "seventies":      "⛵",
+    "sf1033":         "🚓",
+    "sonicuniverse":  "🎷",
+    "spacestation":   "🛰️",
+    "suburbsofgoa":   "🪔",
+    "thetrip":        "🌀",
+    "thistle":        "🍀",
+    "u80s":           "📼",
+    "metal":          "🤘",
+    "reggae":         "🎶",
+    "scanner":        "📻",
+    "vaporwaves":     "🌴",
+    "specials":       "🎉",
+    "n5md":           "🌫️",
+    "synphaera":      "🌠",
+    "darkzone":       "🕳️",
+    "sfinsf":         "📚",
+    "tikitime":       "🍹",
+    "bossa":          "🏖️",
+    "insound":        "🌈",
+    "chillits":       "🏕️",
+}
+
+# Generic fallback when emoji is on but channel id is not in the map.
+_EMOJI_FALLBACK = "🎵"
+
+
+def get_channel_icon(channel_id: str) -> str:
+    """Get genre-specific icon for a channel.
+
+    Returns the plain music note ♪ when emoji is disabled (safe default,
+    no missing-glyph squares). Returns a mapped emoji or generic 🎵 otherwise.
+    """
+    if not _emoji_enabled():
+        return get_music_symbol()
+    return CHANNEL_ICONS.get(channel_id, _EMOJI_FALLBACK)
+
+
 # Icon functions - listeners/bitrate use ASCII, others use Unicode
 def get_listener_icon() -> str:
     """Get listener icon"""
@@ -483,7 +597,7 @@ class UIScreen:
             try:
                 stdscr.move(start_y, start_x)
                 stdscr.clrtoeol()
-                channel_title = f"{get_music_symbol()} {current_channel.title}"
+                channel_title = f"{get_channel_icon(current_channel.id)} {current_channel.title}"
                 if len(channel_title) > available_width:
                     channel_title = channel_title[: available_width - 3] + "..."
                 if len(channel_title) <= available_width:
