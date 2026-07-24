@@ -106,6 +106,11 @@ jobs:
         run: |
           ssh -T -i ~/.ssh/id_ed25519 aur@aur.archlinux.org || echo "SSH test failed"
 
+      - name: Install pacman for makepkg/.SRCINFO generation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pacman-package-manager
+
       - name: Publish to AUR
         env:
           AUR_USERNAME: ${{ secrets.AUR_USERNAME }}
@@ -119,17 +124,14 @@ jobs:
           cd "$REPO_DIR"
 
           # Ensure we are on the master branch (AUR default).
-          # AUR repos use 'master' as the default branch; create it if the
-          # clone landed in detached HEAD (happens with some git versions).
-          git checkout master 2>/dev/null || {
-            git checkout -b master
-          }
+          # The clone may land in detached HEAD if AUR's HEAD points at a
+          # non-branch ref; force-checkout master (always exists on AUR repos).
+          git checkout master || git checkout -b master
 
           # Copy updated PKGBUILD from the workflow workspace.
           cp "$GITHUB_WORKSPACE/PKGBUILD" "$REPO_DIR/PKGBUILD"
 
           # Regenerate .SRCINFO.
-          namcap -t PKGBUILD >/dev/null 2>&1 || true
           makepkg --printsrcinfo > .SRCINFO
 
           # Commit and push.
