@@ -106,14 +106,35 @@ jobs:
         run: |
           ssh -T -i ~/.ssh/id_ed25519 aur@aur.archlinux.org || echo "SSH test failed"
 
-      - name: Update AUR package
-        uses: KSXGitHub/github-actions-deploy-aur@v4.1.2
-        with:
-          pkgname: somafm_tui
-          pkgbuild: PKGBUILD
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to version ${{ steps.get_version.outputs.version }}"
-          ssh_keyscan_types: rsa,ed25519
-          updpkgsums: false
+      - name: Publish to AUR
+        env:
+          AUR_USERNAME: ${{ secrets.AUR_USERNAME }}
+          AUR_EMAIL: ${{ secrets.AUR_EMAIL }}
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          REPO_DIR="/tmp/aur-repo"
+          rm -rf "$REPO_DIR"
+          git clone "ssh://aur@aur.archlinux.org/somafm_tui.git" "$REPO_DIR"
+          cd "$REPO_DIR"
+
+          # Ensure we are on the master branch (AUR default).
+          # AUR repos use 'master' as the default branch; create it if the
+          # clone landed in detached HEAD (happens with some git versions).
+          git checkout master 2>/dev/null || {
+            git checkout -b master
+          }
+
+          # Copy updated PKGBUILD from the workflow workspace.
+          cp "$GITHUB_WORKSPACE/PKGBUILD" "$REPO_DIR/PKGBUILD"
+
+          # Regenerate .SRCINFO.
+          namcap -t PKGBUILD >/dev/null 2>&1 || true
+          makepkg --printsrcinfo > .SRCINFO
+
+          # Commit and push.
+          git config user.name "$AUR_USERNAME"
+          git config user.email "$AUR_EMAIL"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to version $VERSION" || echo "Nothing to commit"
+          git push origin master

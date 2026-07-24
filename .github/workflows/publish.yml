@@ -39,6 +39,8 @@ jobs:
     name: Build distribution
     runs-on: ubuntu-latest
     needs: test
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +49,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(python3 -c "import re; print(re.search(r'^version\s*=\s*\"([^\"]+)\"', open('pyproject.toml').read()).group(1))")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
       - name: Install pypa/build
         run: python3 -m pip install build --user
       - name: Build a binary wheel and a source tarball
@@ -89,7 +97,20 @@ jobs:
         uses: sigstore/gh-action-sigstore-python@v3.0.0
         with:
           inputs: ./dist/*.tar.gz ./dist/*.whl
+      - name: Ensure GitHub Release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ needs.build.outputs.version }}"
+          if ! gh release view "$TAG" --repo "${{ github.repository }}"; then
+            echo "Release $TAG does not exist yet, creating it..."
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --title "Release $TAG" \
+              --generate-notes
+          fi
       - name: Upload artifact signatures to GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload '${{ github.ref_name }}' dist/** --repo '${{ github.repository }}'
+        run: |
+          TAG="v${{ needs.build.outputs.version }}"
+          gh release upload "$TAG" dist/** --repo "${{ github.repository }}"
