@@ -69,20 +69,34 @@ jobs:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      skipped: ${{ steps.check_existing.outputs.skipped }}
     steps:
       - name: Download all the dists
         uses: actions/download-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
+      - name: Check if version already on PyPI
+        id: check_existing
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          if curl -sf "https://pypi.org/pypi/somafm-tui/${VERSION}/json" >/dev/null 2>&1; then
+            echo "Version $VERSION already on PyPI, skipping upload"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
       - name: Publish to PyPI
+        if: steps.check_existing.outputs.skipped != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
   github-release:
     name: Sign with Sigstore and upload to GitHub Release
-    needs: publish-to-pypi
+    needs: [publish-to-pypi, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
